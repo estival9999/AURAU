@@ -74,9 +74,7 @@ __all__ = [
     "AgenteBaseSimulado",
     "Mensagem",
     
-    # Mock
-    "MockOpenAI",
-    "criar_cliente_mock"
+
 ]
 
 
