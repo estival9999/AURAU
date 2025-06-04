@@ -1,6 +1,6 @@
 """
-AURALIS Backend Integration
-Main module that bridges the frontend GUI with the AI agent system
+Integração Backend AURALIS
+Módulo principal que conecta a interface gráfica (GUI) com o sistema de agentes IA
 """
 
 import asyncio
@@ -11,11 +11,11 @@ import os
 from threading import Thread
 import json
 
-# Import agent system
+# Importar sistema de agentes
 from src.agentes.sistema_agentes import SistemaAgentes
 from src.database.supabase_handler import SupabaseHandler
 
-# Configure logging
+# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -24,40 +24,56 @@ logging.basicConfig(
 
 class AURALISBackend:
     """
-    Main backend class that integrates all AURALIS components.
-    Handles authentication, message processing, and database operations.
+    Classe backend principal que integra todos os componentes AURALIS.
+    Gerencia autenticação, processamento de mensagens e operações de banco de dados.
     """
     
     def __init__(self, mock_mode: bool = None):
         """
-        Initialize AURALIS backend.
+        Inicializa o backend AURALIS.
         
         Args:
-            mock_mode: Force mock mode (None = auto-detect based on environment)
+            mock_mode: Força modo simulado (None = auto-detecta baseado no ambiente)
         """
         self.logger = logging.getLogger(__name__)
         
-        # Determine mode
+        # Determinar modo de operação
         if mock_mode is None:
             mock_mode = not os.getenv("OPENAI_API_KEY") or os.getenv("DEBUG_MODE") == "True"
         
         self.mock_mode = mock_mode
-        self.logger.info(f"Initializing AURALIS Backend (mock_mode={mock_mode})")
+        self.logger.info(f"Inicializando Backend AURALIS (modo_simulado={mock_mode})")
         
-        # Initialize components
+        # Inicializar componentes
         self.sistema_agentes = SistemaAgentes(modo_debug=True)
-        self.db_handler = SupabaseHandler(mock_mode=mock_mode)
         
-        # Current session state
+        # Tentar inicializar Supabase, mas forçar mock se houver erro
+        try:
+            self.db_handler = SupabaseHandler(mock_mode=mock_mode)
+            # Testar conexão com uma operação simples
+            if not mock_mode:
+                # Fazer uma query de teste
+                test_user = self.db_handler.authenticate_user("_test_", "_test_")
+                if test_user is None:
+                    # Se falhar, não necessariamente é um erro
+                    pass
+        except Exception as e:
+            self.logger.warning(f"Erro ao conectar com Supabase: {e}")
+            self.logger.info("Mudando para modo mock automaticamente")
+            # Recriar em modo mock
+            self.db_handler = SupabaseHandler(mock_mode=True)
+            self.mock_mode = True
+        
+        # Estado da sessão atual
         self.current_user = None
         self.current_meeting_context = None
         self.session_start = datetime.now()
         
-        # Cache for frequent operations
+        # Cache para operações frequentes
         self.response_cache = {}
-        self.cache_ttl_seconds = 300  # 5 minutes
+        self.cache_ttl_seconds = 300  # 5 minutos
         
-        # Statistics
+        # Estatísticas
         self.stats = {
             "messages_processed": 0,
             "cache_hits": 0,
@@ -65,34 +81,34 @@ class AURALISBackend:
             "total_response_time": 0
         }
     
-    # ==================== Authentication ====================
+    # ==================== Autenticação ====================
     
     def authenticate(self, username: str, password: str) -> Optional[Dict]:
         """
-        Authenticate user through database.
+        Autentica usuário através do banco de dados.
         
         Args:
-            username: Username
-            password: Password
+            username: Nome de usuário
+            password: Senha
             
         Returns:
-            User profile dict or None if authentication fails
+            Dicionário com perfil do usuário ou None se a autenticação falhar
         """
         try:
             user = self.db_handler.authenticate_user(username, password)
             
             if user:
                 self.current_user = user
-                self.logger.info(f"User {username} authenticated successfully")
+                self.logger.info(f"Usuário {username} autenticado com sucesso")
                 
-                # Update agent context with user info
+                # Atualizar contexto dos agentes com informações do usuário
                 self.sistema_agentes.atualizar_contexto_global({
                     "usuario_atual": user,
                     "area_usuario": user.get('area', 'geral'),
                     "preferencias": user.get('preferences', {})
                 })
                 
-                # Log session start
+                # Registrar início da sessão
                 self.db_handler.log_agent_interaction({
                     'user_id': user['id'],
                     'agent_id': self._get_orchestrator_agent_id(),
@@ -105,14 +121,14 @@ class AURALISBackend:
             return user
             
         except Exception as e:
-            self.logger.error(f"Authentication error: {e}")
+            self.logger.error(f"Erro de autenticação: {e}")
             self.stats["errors"] += 1
             return None
     
     def logout(self):
-        """Logout current user and clean up session"""
+        """Faz logout do usuário atual e limpa a sessão"""
         if self.current_user:
-            # Log session end
+            # Registrar fim da sessão
             self.db_handler.log_agent_interaction({
                 'user_id': self.current_user['id'],
                 'agent_id': self._get_orchestrator_agent_id(),
@@ -125,25 +141,25 @@ class AURALISBackend:
                 }
             })
             
-            self.logger.info(f"User {self.current_user['username']} logged out")
+            self.logger.info(f"Usuário {self.current_user['username']} fez logout")
         
-        # Clear session data
+        # Limpar dados da sessão
         self.current_user = None
         self.current_meeting_context = None
         self.response_cache.clear()
         self.sistema_agentes.atualizar_contexto_global({})
     
-    # ==================== Meeting Management ====================
+    # ==================== Gerenciamento de Reuniões ====================
     
     def get_meeting_history(self, limit: int = 10) -> List[Dict]:
         """
-        Get meeting history for current user.
+        Obtém histórico de reuniões do usuário atual.
         
         Args:
-            limit: Maximum number of meetings to return
+            limit: Número máximo de reuniões para retornar
             
         Returns:
-            List of meeting dictionaries
+            Lista de dicionários de reuniões
         """
         if not self.current_user:
             return []
@@ -154,7 +170,7 @@ class AURALISBackend:
                 limit
             )
             
-            # Format meetings for frontend display
+            # Formatar reuniões para exibição no frontend
             formatted_meetings = []
             for meeting in meetings:
                 formatted_meetings.append({
@@ -170,21 +186,21 @@ class AURALISBackend:
             return formatted_meetings
             
         except Exception as e:
-            self.logger.error(f"Error fetching meeting history: {e}")
+            self.logger.error(f"Erro ao buscar histórico de reuniões: {e}")
             self.stats["errors"] += 1
             return []
     
     def get_meeting_details(self, meeting_id: str) -> Optional[Dict]:
-        """Get detailed meeting information including transcription"""
+        """Obtém informações detalhadas da reunião incluindo transcrição"""
         try:
             meeting = self.db_handler.get_meeting_by_id(meeting_id)
             if not meeting:
                 return None
             
-            # Get transcription
+            # Obter transcrição
             transcription = self.db_handler.get_meeting_transcription(meeting_id)
             
-            # Format for frontend
+            # Formatar para o frontend
             return {
                 'meeting': meeting,
                 'transcription': transcription,
@@ -192,16 +208,16 @@ class AURALISBackend:
             }
             
         except Exception as e:
-            self.logger.error(f"Error fetching meeting details: {e}")
+            self.logger.error(f"Erro ao buscar detalhes da reunião: {e}")
             return None
     
     def save_meeting(self, meeting_data: Dict) -> Optional[str]:
-        """Save a new meeting"""
+        """Salva uma nova reunião"""
         if not self.current_user:
             return None
         
         try:
-            # Add organizer and timestamps
+            # Adicionar organizador e timestamps
             meeting_data['organizer_id'] = self.current_user['id']
             meeting_data['created_at'] = datetime.now().isoformat()
             meeting_data['status'] = 'scheduled'
@@ -209,110 +225,110 @@ class AURALISBackend:
             meeting_id = self.db_handler.save_meeting(meeting_data)
             
             if meeting_id:
-                self.logger.info(f"Meeting saved with ID: {meeting_id}")
+                self.logger.info(f"Reunião salva com ID: {meeting_id}")
             
             return meeting_id
             
         except Exception as e:
-            self.logger.error(f"Error saving meeting: {e}")
+            self.logger.error(f"Erro ao salvar reunião: {e}")
             return None
     
-    # ==================== AI Message Processing ====================
+    # ==================== Processamento de Mensagens IA ====================
     
     def process_user_message(self, message: str, 
                            meeting_context: Optional[str] = None,
                            use_cache: bool = True) -> str:
         """
-        Process user message through agent system.
+        Processa mensagem do usuário através do sistema de agentes.
         
         Args:
-            message: User message
-            meeting_context: Optional meeting context
-            use_cache: Whether to use response cache
+            message: Mensagem do usuário
+            meeting_context: Contexto opcional da reunião
+            use_cache: Se deve usar cache de respostas
             
         Returns:
-            AI response string
+            String com resposta da IA
         """
         start_time = datetime.now()
         
         try:
-            # Check cache first
-            cache_key = f"{message}_{meeting_context or 'general'}"
+            # Verificar cache primeiro
+            cache_key = f"{message}_{meeting_context or 'geral'}"
             if use_cache and cache_key in self.response_cache:
                 cached_response = self.response_cache[cache_key]
                 cache_age = (datetime.now() - cached_response['timestamp']).total_seconds()
                 
                 if cache_age < self.cache_ttl_seconds:
                     self.stats["cache_hits"] += 1
-                    self.logger.info("Returning cached response")
+                    self.logger.info("Retornando resposta do cache")
                     return cached_response['response']
             
-            # Build complete context
+            # Construir contexto completo
             context = self._build_context(meeting_context)
             
-            # Process through agents
-            self.logger.info(f"Processing message: {message[:50]}...")
+            # Processar através dos agentes
+            self.logger.info(f"Processando mensagem: {message[:50]}...")
             response = self.sistema_agentes.processar_mensagem_usuario(
                 message, 
                 context
             )
             
-            # Cache response
+            # Armazenar resposta no cache
             if use_cache:
                 self.response_cache[cache_key] = {
                     'response': response,
                     'timestamp': datetime.now()
                 }
             
-            # Log interaction
+            # Registrar interação
             self._log_interaction(message, response, context)
             
-            # Update statistics
+            # Atualizar estatísticas
             self.stats["messages_processed"] += 1
             response_time = (datetime.now() - start_time).total_seconds()
             self.stats["total_response_time"] += response_time
             
-            self.logger.info(f"Message processed in {response_time:.2f}s")
+            self.logger.info(f"Mensagem processada em {response_time:.2f}s")
             
             return response
             
         except Exception as e:
-            self.logger.error(f"Error processing message: {e}")
+            self.logger.error(f"Erro ao processar mensagem: {e}")
             self.stats["errors"] += 1
             
-            # Return friendly error message
+            # Retornar mensagem de erro amigável
             return self._get_error_response(str(e))
     
     def process_voice_command(self, audio_text: str) -> str:
         """
-        Process voice command (transcribed text).
+        Processa comando de voz (texto transcrito).
         
         Args:
-            audio_text: Transcribed voice command
+            audio_text: Comando de voz transcrito
             
         Returns:
-            AI response
+            Resposta da IA
         """
-        # Add voice command marker for context
+        # Adicionar marcador de comando de voz para contexto
         return self.process_user_message(
             f"[Comando de voz] {audio_text}",
             self.current_meeting_context
         )
     
-    # ==================== Context and Analysis ====================
+    # ==================== Contexto e Análise ====================
     
     def analyze_meeting(self, meeting_id: str) -> Dict[str, Any]:
         """
-        Analyze a specific meeting using AI agents.
+        Analisa uma reunião específica usando agentes IA.
         
         Args:
-            meeting_id: Meeting ID to analyze
+            meeting_id: ID da reunião para analisar
             
         Returns:
-            Analysis results
+            Resultados da análise
         """
         try:
-            # Get meeting details
+            # Obter detalhes da reunião
             meeting_data = self.get_meeting_details(meeting_id)
             if not meeting_data:
                 return {"error": "Reunião não encontrada"}
@@ -320,10 +336,10 @@ class AURALISBackend:
             meeting = meeting_data['meeting']
             transcription = meeting_data.get('transcription')
             
-            # Set meeting context
+            # Definir contexto da reunião
             self.current_meeting_context = meeting['title']
             
-            # Prepare analysis prompts
+            # Preparar prompts de análise
             analysis_tasks = [
                 ("Resumir os principais pontos discutidos", "summary"),
                 ("Listar todas as decisões tomadas", "decisions"),
@@ -341,7 +357,7 @@ class AURALISBackend:
                 )
                 results[key] = response
             
-            # Compile complete analysis
+            # Compilar análise completa
             analysis = {
                 "meeting_id": meeting_id,
                 "meeting_title": meeting['title'],
@@ -357,20 +373,20 @@ class AURALISBackend:
             return analysis
             
         except Exception as e:
-            self.logger.error(f"Error analyzing meeting: {e}")
+            self.logger.error(f"Erro ao analisar reunião: {e}")
             return {"error": str(e)}
     
     def get_contextual_suggestions(self) -> List[str]:
         """
-        Get contextual suggestions based on current state.
+        Obtém sugestões contextuais baseadas no estado atual.
         
         Returns:
-            List of suggested queries
+            Lista de consultas sugeridas
         """
         suggestions = []
         
         if self.current_meeting_context:
-            # Meeting-specific suggestions
+            # Sugestões específicas da reunião
             suggestions.extend([
                 "Resumir principais decisões desta reunião",
                 "Listar ações pendentes",
@@ -379,7 +395,7 @@ class AURALISBackend:
                 "Gerar email de follow-up"
             ])
         else:
-            # General suggestions
+            # Sugestões gerais
             suggestions.extend([
                 "Buscar reuniões recentes",
                 "Mostrar minhas tarefas pendentes",
@@ -388,7 +404,7 @@ class AURALISBackend:
                 "Sugerir pauta para próxima reunião"
             ])
         
-        # Add user-specific suggestions based on role
+        # Adicionar sugestões específicas do usuário baseadas no papel
         if self.current_user:
             role = self.current_user.get('role', 'user')
             if role == 'admin':
@@ -397,12 +413,12 @@ class AURALISBackend:
                     "Analisar produtividade geral"
                 ])
         
-        return suggestions[:5]  # Return top 5 suggestions
+        return suggestions[:5]  # Retornar as 5 principais sugestões
     
-    # ==================== Statistics and Analytics ====================
+    # ==================== Estatísticas e Análise ====================
     
     def get_session_statistics(self) -> Dict[str, Any]:
-        """Get current session statistics"""
+        """Obtém estatísticas da sessão atual"""
         avg_response_time = 0
         if self.stats["messages_processed"] > 0:
             avg_response_time = self.stats["total_response_time"] / self.stats["messages_processed"]
@@ -418,16 +434,16 @@ class AURALISBackend:
         }
     
     def get_user_analytics(self) -> Dict[str, Any]:
-        """Get user analytics from database"""
+        """Obtém análise de dados do usuário do banco de dados"""
         if not self.current_user:
             return {}
         
         return self.db_handler.get_user_statistics(self.current_user['id'])
     
-    # ==================== Helper Methods ====================
+    # ==================== Métodos Auxiliares ====================
     
     def _build_context(self, meeting_context: Optional[str] = None) -> Dict[str, Any]:
-        """Build complete context for agent processing"""
+        """Constrói contexto completo para processamento dos agentes"""
         context = {
             "usuario": self.current_user,
             "timestamp": datetime.now().isoformat(),
@@ -437,11 +453,11 @@ class AURALISBackend:
             }
         }
         
-        # Add meeting context if available
+        # Adicionar contexto da reunião se disponível
         if meeting_context:
             context["reuniao_contexto"] = meeting_context
             
-            # Try to load meeting data
+            # Tentar carregar dados da reunião
             meetings = self.db_handler.search_meetings_by_title(
                 meeting_context, 
                 self.current_user['id']
@@ -456,7 +472,7 @@ class AURALISBackend:
                     "participantes": self._get_participant_names(meeting)
                 }
                 
-                # Add transcription if available
+                # Adicionar transcrição se disponível
                 transcription = self.db_handler.get_meeting_transcription(meeting['id'])
                 if transcription:
                     context["transcricao"] = transcription['full_text']
@@ -464,7 +480,7 @@ class AURALISBackend:
         return context
     
     def _log_interaction(self, input_text: str, output_text: str, context: Dict):
-        """Log interaction to database"""
+        """Registra interação no banco de dados"""
         if not self.current_user:
             return
         
@@ -473,8 +489,8 @@ class AURALISBackend:
                 'user_id': self.current_user['id'],
                 'agent_id': self._get_orchestrator_agent_id(),
                 'interaction_type': 'chat',
-                'input_text': input_text[:1000],  # Limit text size
-                'output_text': output_text[:5000],  # Limit text size
+                'input_text': input_text[:1000],  # Limitar tamanho do texto
+                'output_text': output_text[:5000],  # Limitar tamanho do texto
                 'context': json.dumps(context, ensure_ascii=False),
                 'tokens_used': self._estimate_tokens(input_text + output_text)
             }
@@ -482,17 +498,17 @@ class AURALISBackend:
             self.db_handler.log_agent_interaction(interaction_data)
             
         except Exception as e:
-            self.logger.error(f"Error logging interaction: {e}")
+            self.logger.error(f"Erro ao registrar interação: {e}")
     
     def _get_orchestrator_agent_id(self) -> str:
-        """Get orchestrator agent ID (cached)"""
+        """Obtém ID do agente orquestrador (com cache)"""
         if not hasattr(self, '_orchestrator_id'):
             agent = self.db_handler.get_agent_by_name('Orquestrador AURALIS')
             self._orchestrator_id = agent['id'] if agent else 'default-orchestrator'
         return self._orchestrator_id
     
     def _get_error_response(self, error: str) -> str:
-        """Get user-friendly error response"""
+        """Obtém resposta de erro amigável ao usuário"""
         error_responses = {
             "connection": "Desculpe, estou com problemas de conexão. Tente novamente em instantes.",
             "timeout": "A operação demorou muito. Por favor, tente novamente.",
@@ -500,7 +516,7 @@ class AURALISBackend:
             "default": "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente."
         }
         
-        # Determine error type
+        # Determinar tipo de erro
         error_type = "default"
         if "connection" in error.lower() or "network" in error.lower():
             error_type = "connection"
@@ -512,7 +528,7 @@ class AURALISBackend:
         return error_responses[error_type]
     
     def _format_date(self, datetime_str: str) -> str:
-        """Format datetime string to date"""
+        """Formata string de datetime para data"""
         try:
             dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
             return dt.strftime("%d/%m")
@@ -520,7 +536,7 @@ class AURALISBackend:
             return datetime_str[:10]
     
     def _format_time(self, datetime_str: str) -> str:
-        """Format datetime string to time"""
+        """Formata string de datetime para hora"""
         try:
             dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
             return dt.strftime("%H:%M")
@@ -528,7 +544,7 @@ class AURALISBackend:
             return datetime_str[11:16] if len(datetime_str) > 16 else "00:00"
     
     def _format_duration(self, seconds: int) -> str:
-        """Format duration in seconds to human readable"""
+        """Formata duração em segundos para formato legível"""
         if seconds < 60:
             return f"{seconds} seg"
         elif seconds < 3600:
@@ -542,14 +558,14 @@ class AURALISBackend:
             return f"{hours}h"
     
     def _get_participant_names(self, meeting: Dict) -> List[str]:
-        """Extract participant names from meeting data"""
+        """Extrai nomes dos participantes dos dados da reunião"""
         participants = []
         
-        # Add organizer
+        # Adicionar organizador
         if 'organizer' in meeting:
             participants.append(meeting['organizer'].get('full_name', 'Organizador'))
         
-        # Add participants
+        # Adicionar participantes
         if 'meeting_participants' in meeting:
             for participant in meeting['meeting_participants']:
                 if 'user' in participant:
@@ -558,47 +574,47 @@ class AURALISBackend:
         return participants
     
     def _format_transcription(self, transcription: Dict) -> str:
-        """Format transcription for display"""
+        """Formata transcrição para exibição"""
         if not transcription:
             return "Transcrição não disponível"
         
         formatted = []
         
-        # Add segments if available
+        # Adicionar segmentos se disponíveis
         if 'transcription_segments' in transcription:
             for segment in transcription['transcription_segments']:
                 speaker = segment.get('speaker_name', 'Desconhecido')
                 text = segment.get('text', '')
                 formatted.append(f"{speaker}: {text}")
         else:
-            # Use full text
+            # Usar texto completo
             formatted.append(transcription.get('full_text', ''))
         
         return '\n\n'.join(formatted)
     
     def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count (rough approximation)"""
-        # Rough estimate: 1 token ≈ 4 characters
+        """Estima contagem de tokens (aproximação)"""
+        # Estimativa aproximada: 1 token ≈ 4 caracteres
         return len(text) // 4
 
 
-# ==================== Async Wrapper Functions ====================
+# ==================== Funções de Wrapper Assíncrono ====================
 
 def create_backend(mock_mode: bool = None) -> AURALISBackend:
-    """Create and initialize AURALIS backend"""
+    """Cria e inicializa o backend AURALIS"""
     return AURALISBackend(mock_mode=mock_mode)
 
 
 def process_message_async(backend: AURALISBackend, message: str, 
                          callback: callable, error_callback: callable = None):
     """
-    Process message asynchronously in a thread.
+    Processa mensagem de forma assíncrona em uma thread.
     
     Args:
-        backend: AURALIS backend instance
-        message: User message
-        callback: Function to call with response
-        error_callback: Optional function to call on error
+        backend: Instância do backend AURALIS
+        message: Mensagem do usuário
+        callback: Função para chamar com a resposta
+        error_callback: Função opcional para chamar em caso de erro
     """
     def _process():
         try:
@@ -615,38 +631,38 @@ def process_message_async(backend: AURALISBackend, message: str,
     thread.start()
 
 
-# ==================== Testing ====================
+# ==================== Testes ====================
 
 if __name__ == "__main__":
-    # Test backend functionality
-    print("Testing AURALIS Backend...")
+    # Testar funcionalidade do backend
+    print("Testando Backend AURALIS...")
     
-    # Create backend in mock mode
+    # Criar backend em modo simulado
     backend = create_backend(mock_mode=True)
     
-    # Test authentication
-    print("\n1. Testing authentication...")
+    # Testar autenticação
+    print("\n1. Testando autenticação...")
     user = backend.authenticate("admin", "password")
-    print(f"Authenticated: {user['username'] if user else 'Failed'}")
+    print(f"Autenticado: {user['username'] if user else 'Falhou'}")
     
-    # Test message processing
-    print("\n2. Testing message processing...")
+    # Testar processamento de mensagens
+    print("\n2. Testando processamento de mensagens...")
     response = backend.process_user_message("Olá, como posso usar o sistema?")
-    print(f"Response: {response[:100]}...")
+    print(f"Resposta: {response[:100]}...")
     
-    # Test meeting history
-    print("\n3. Testing meeting history...")
+    # Testar histórico de reuniões
+    print("\n3. Testando histórico de reuniões...")
     meetings = backend.get_meeting_history()
-    print(f"Found {len(meetings)} meetings")
+    print(f"Encontradas {len(meetings)} reuniões")
     
-    # Test suggestions
-    print("\n4. Testing suggestions...")
+    # Testar sugestões
+    print("\n4. Testando sugestões...")
     suggestions = backend.get_contextual_suggestions()
-    print(f"Suggestions: {suggestions}")
+    print(f"Sugestões: {suggestions}")
     
-    # Test statistics
-    print("\n5. Testing statistics...")
+    # Testar estatísticas
+    print("\n5. Testando estatísticas...")
     stats = backend.get_session_statistics()
-    print(f"Session stats: {stats}")
+    print(f"Estatísticas da sessão: {stats}")
     
-    print("\nAll tests completed!")
+    print("\nTodos os testes concluídos!")

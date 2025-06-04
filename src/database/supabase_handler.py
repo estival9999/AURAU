@@ -162,11 +162,23 @@ class SupabaseHandler:
             User profile dict or None if authentication fails
         """
         if self.mock_mode:
-            # Mock authentication - accept any password
+            # Mock authentication com verificação de senha
+            mock_passwords = {
+                "admin": "admin123",
+                "teste": "teste123"
+            }
+            
             for user in self.mock_users:
                 if user["username"] == username:
-                    self.logger.info(f"Mock authentication successful for {username}")
-                    return user
+                    # Verifica a senha
+                    if mock_passwords.get(username) == password:
+                        self.logger.info(f"Mock authentication successful for {username}")
+                        return user
+                    else:
+                        self.logger.warning(f"Invalid password for user {username}")
+                        return None
+            
+            self.logger.warning(f"User {username} not found")
             return None
         
         try:

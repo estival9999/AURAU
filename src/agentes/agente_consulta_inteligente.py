@@ -15,6 +15,9 @@ if os.getenv("OPENAI_API_KEY"):
 else:
     from .agente_base_simulado import AgenteBaseSimulado as AgenteBase
 
+# Importar o novo sistema de templates
+from .prompt_template import PromptTemplate, TomResposta
+
 
 class AgenteConsultaInteligente(AgenteBase):
     """
@@ -34,9 +37,13 @@ class AgenteConsultaInteligente(AgenteBase):
             descricao="Especialista em busca semântica e recuperação de informações relevantes"
         )
         
+        # ===== CONFIGURAÇÃO DO TEMPLATE =====
+        # Usa o novo sistema de templates padronizados
+        self.config_prompt = PromptTemplate.criar_config_consulta()
+        
         # ===== CONFIGURAÇÕES ESPECÍFICAS =====
-        # Temperatura baixa para resultados mais precisos e consistentes
-        self.temperatura = 0.2
+        # Usa configurações do template
+        self.temperatura = self.config_prompt.temperatura
         self.max_resultados = 10  # Limite de resultados por busca
         
         # ===== DICIONÁRIO DE SINÔNIMOS =====
@@ -131,31 +138,13 @@ class AgenteConsultaInteligente(AgenteBase):
         Define o prompt do sistema para o agente de consulta.
         
         Returns:
-            str: Prompt do sistema
+            str: Prompt do sistema usando o template padronizado
         """
-        return """Você é o Consultor Inteligente do sistema AURALIS, especializado em buscar e apresentar informações relevantes.
-
-Suas responsabilidades:
-1. Buscar informações precisas em reuniões passadas e documentos
-2. Correlacionar dados de múltiplas fontes
-3. Apresentar as informações de forma clara e estruturada
-4. Sempre citar as fontes (reunião, data, participante)
-5. Destacar informações mais relevantes primeiro
-
-Ao responder:
-- Seja preciso e objetivo
-- Cite sempre as fontes das informações
-- Se não encontrar informações, seja claro sobre isso
-- Sugira buscas alternativas quando apropriado
-- Use formatação para facilitar a leitura (bullets, negrito, etc.)
-
-Formato preferido de resposta:
-1. Resumo executivo (se aplicável)
-2. Informações encontradas com fontes
-3. Informações relacionadas (se relevante)
-4. Sugestões de busca adicional (se necessário)
-
-Sempre responda em português brasileiro."""
+        # Usa o novo sistema de templates com contexto atual
+        return PromptTemplate.gerar_prompt_contextualizado(
+            self.config_prompt,
+            self.contexto_atual
+        )
     
     def processar_mensagem(self, mensagem: str, contexto: Dict[str, Any] = None) -> str:
         """

@@ -14,6 +14,9 @@ if os.getenv("OPENAI_API_KEY"):
 else:
     from .agente_base_simulado import AgenteBaseSimulado as AgenteBase
 
+# Importar o novo sistema de templates
+from .prompt_template import PromptTemplate, TomResposta
+
 
 class TecnicaBrainstorm(Enum):
     """Técnicas de brainstorming disponíveis no sistema.
@@ -47,11 +50,14 @@ class AgenteBrainstorm(AgenteBase):
             descricao="Especialista em brainstorming e geração de ideias inovadoras"
         )
         
+        # ===== CONFIGURAÇÃO DO TEMPLATE =====
+        # Usa o novo sistema de templates padronizados
+        self.config_prompt = PromptTemplate.criar_config_brainstorm()
+        
         # ===== CONFIGURAÇÕES ESPECÍFICAS =====
-        # Temperatura alta para maximizar criatividade e variação
-        self.temperatura = 0.9
-        # Tokens aumentados para permitir ideias detalhadas
-        self.max_tokens = 1500
+        # Usa configurações do template
+        self.temperatura = self.config_prompt.temperatura
+        self.max_tokens = self.config_prompt.max_tokens
         
         # ===== DICIONÁRIO DE TÉCNICAS DE BRAINSTORM =====
         # Descrições detalhadas e componentes de cada técnica
@@ -127,42 +133,13 @@ class AgenteBrainstorm(AgenteBase):
         Define o prompt do sistema para o agente de brainstorm.
         
         Returns:
-            str: Prompt do sistema
+            str: Prompt do sistema usando o template padronizado
         """
-        return """Você é o Agente Criativo do sistema AURALIS, especializado em gerar ideias inovadoras e soluções criativas.
-
-Seu papel é:
-1. Gerar múltiplas ideias criativas para problemas apresentados
-2. Fazer conexões não óbvias entre conceitos
-3. Propor soluções inovadoras baseadas em informações de reuniões passadas
-4. Usar diferentes técnicas de brainstorming (SCAMPER, 6 Chapéus, etc.)
-5. Expandir e desenvolver conceitos
-
-Diretrizes:
-- Seja ousado e pense fora da caixa
-- Apresente ideias variadas (conservadoras a radicais)
-- Estruture as ideias de forma clara
-- Conecte ideias com experiências passadas quando relevante
-- Use analogias e metáforas para explicar conceitos
-- Sempre apresente pelo menos 3-5 ideias diferentes
-- Avalie o nível de inovação de cada ideia (1-5 estrelas)
-
-Formato preferido:
-### Ideia N: [Título Criativo]
-**Nível de Inovação:** [estrelas]
-**Descrição:** [Explicação concisa]
-**Como implementar:**
-1. Passo 1
-2. Passo 2
-3. Passo 3
-**Benefícios esperados:**
-- Benefício 1
-- Benefício 2
-**Possíveis desafios:**
-- Desafio 1
-- Desafio 2
-
-Sempre responda em português brasileiro e seja entusiasmado mas profissional."""
+        # Usa o novo sistema de templates com contexto atual
+        return PromptTemplate.gerar_prompt_contextualizado(
+            self.config_prompt,
+            self.contexto_atual
+        )
     
     def processar_mensagem(self, mensagem: str, contexto: Dict[str, Any] = None) -> str:
         """
