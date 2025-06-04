@@ -16,14 +16,17 @@ else:
 
 
 class TecnicaBrainstorm(Enum):
-    """Técnicas de brainstorming disponíveis"""
-    SCAMPER = "SCAMPER"
-    SEIS_CHAPEUS = "6 Chapéus do Pensamento"
-    BRAINSTORM_REVERSO = "Brainstorming Reverso"
-    WHAT_IF = "What If"
-    MAPA_MENTAL = "Mapa Mental"
-    ANALOGIAS = "Analogias"
-    COMBINACAO_ALEATORIA = "Combinação Aleatória"
+    """Técnicas de brainstorming disponíveis no sistema.
+    
+    Cada técnica tem características e aplicações específicas.
+    """
+    SCAMPER = "SCAMPER"                           # Técnica sistemática de modificação
+    SEIS_CHAPEUS = "6 Chapéus do Pensamento"      # Análise por perspectivas
+    BRAINSTORM_REVERSO = "Brainstorming Reverso"  # Inverter o problema
+    WHAT_IF = "What If"                           # Cenários hipotéticos
+    MAPA_MENTAL = "Mapa Mental"                   # Visualização de ideias
+    ANALOGIAS = "Analogias"                       # Buscar em outros domínios
+    COMBINACAO_ALEATORIA = "Combinação Aleatória" # Misturar conceitos
 
 
 class AgenteBrainstorm(AgenteBase):
@@ -44,23 +47,26 @@ class AgenteBrainstorm(AgenteBase):
             descricao="Especialista em brainstorming e geração de ideias inovadoras"
         )
         
-        # Configurações específicas
-        self.temperatura = 0.9  # Alta criatividade
-        self.max_tokens = 1500  # Respostas mais longas para ideias detalhadas
+        # ===== CONFIGURAÇÕES ESPECÍFICAS =====
+        # Temperatura alta para maximizar criatividade e variação
+        self.temperatura = 0.9
+        # Tokens aumentados para permitir ideias detalhadas
+        self.max_tokens = 1500
         
-        # Descrições das técnicas
+        # ===== DICIONÁRIO DE TÉCNICAS DE BRAINSTORM =====
+        # Descrições detalhadas e componentes de cada técnica
         self.descricoes_tecnicas = {
             TecnicaBrainstorm.SCAMPER: {
                 "nome": "SCAMPER",
                 "descricao": "Técnica sistemática para modificar ideias existentes",
                 "componentes": {
-                    "S": "Substitute (Substituir) - O que pode ser substituído?",
-                    "C": "Combine (Combinar) - O que pode ser combinado?",
-                    "A": "Adapt (Adaptar) - O que pode ser adaptado?",
-                    "M": "Modify/Magnify (Modificar/Ampliar) - O que pode ser modificado ou ampliado?",
-                    "P": "Put to other uses (Outros usos) - Que outros usos são possíveis?",
-                    "E": "Eliminate (Eliminar) - O que pode ser eliminado?",
-                    "R": "Reverse/Rearrange (Reverter/Reorganizar) - O que pode ser invertido ou reorganizado?"
+                    "S": "Substituir - O que pode ser substituído?",
+                    "C": "Combinar - O que pode ser combinado?",
+                    "A": "Adaptar - O que pode ser adaptado?",
+                    "M": "Modificar/Ampliar - O que pode ser modificado ou ampliado?",
+                    "P": "Propor outros usos - Que outros usos são possíveis?",
+                    "E": "Eliminar - O que pode ser eliminado?",
+                    "R": "Reverter/Reorganizar - O que pode ser invertido ou reorganizado?"
                 }
             },
             TecnicaBrainstorm.SEIS_CHAPEUS: {
@@ -85,7 +91,7 @@ class AgenteBrainstorm(AgenteBase):
                 }
             },
             TecnicaBrainstorm.WHAT_IF: {
-                "nome": "What If (E se...)",
+                "nome": "E se... (What If)",
                 "descricao": "Explorar cenários hipotéticos",
                 "componentes": {
                     "Recursos ilimitados": "E se tivéssemos recursos infinitos?",
@@ -106,7 +112,8 @@ class AgenteBrainstorm(AgenteBase):
             }
         }
         
-        # Templates de ideias por nível de inovação
+        # ===== NÍVEIS DE INOVAÇÃO =====
+        # Classificação das ideias por grau de inovação
         self.niveis_inovacao = {
             1: {"nome": "Conservadora", "simbolo": "⭐", "descricao": "Melhoria incremental"},
             2: {"nome": "Moderada", "simbolo": "⭐⭐", "descricao": "Mudança significativa"},
@@ -172,15 +179,17 @@ Sempre responda em português brasileiro e seja entusiasmado mas profissional.""
         if contexto:
             self.atualizar_contexto(contexto)
         
-        # Identificar tipo de solicitação
+        # ===== SELEÇÃO DA TÉCNICA =====
+        # Escolhe a técnica mais apropriada baseada na mensagem
         tecnica = self.escolher_tecnica(mensagem)
         
         print(f"[BRAINSTORM] Técnica escolhida: {tecnica.value}")
         
-        # Gerar ideias usando a técnica apropriada
+        # ===== GERAÇÃO DE IDEIAS =====
+        # Aplica a técnica escolhida para gerar ideias criativas
         ideias = self.gerar_ideias(mensagem, tecnica, contexto)
         
-        # Formatar resposta
+        # ===== FORMATAÇÃO DA RESPOSTA =====
         resposta = self.formatar_resposta_criativa(mensagem, ideias, tecnica)
         
         # Adicionar ao histórico
@@ -200,23 +209,28 @@ Sempre responda em português brasileiro e seja entusiasmado mas profissional.""
         """
         mensagem_lower = mensagem.lower()
         
-        # Análise por palavras-chave
+        # ===== ANÁLISE DE PALAVRAS-CHAVE =====
+        # SCAMPER: para melhorias e modificações
         if any(palavra in mensagem_lower for palavra in ["melhorar", "otimizar", "aprimorar", "modificar"]):
             return TecnicaBrainstorm.SCAMPER
         
+        # 6 Chapéus: para análises multiperspectivas
         elif any(palavra in mensagem_lower for palavra in ["analisar", "perspectiva", "visão", "ângulo"]):
             return TecnicaBrainstorm.SEIS_CHAPEUS
         
+        # Brainstorm Reverso: para resolver problemas
         elif any(palavra in mensagem_lower for palavra in ["problema", "evitar", "prevenir", "resolver"]):
             return TecnicaBrainstorm.BRAINSTORM_REVERSO
         
+        # What If: para explorar cenários
         elif any(palavra in mensagem_lower for palavra in ["cenário", "futuro", "possibilidade"]):
             return TecnicaBrainstorm.WHAT_IF
         
+        # Analogias: para buscar inspiração
         elif any(palavra in mensagem_lower for palavra in ["similar", "parecido", "inspirar"]):
             return TecnicaBrainstorm.ANALOGIAS
         
-        # Default: SCAMPER é versátil
+        # Padrão: SCAMPER é a técnica mais versátil
         return TecnicaBrainstorm.SCAMPER
     
     def gerar_ideias(self, desafio: str, tecnica: TecnicaBrainstorm, 
@@ -232,7 +246,8 @@ Sempre responda em português brasileiro e seja entusiasmado mas profissional.""
         Returns:
             List[Dict]: Lista de ideias geradas
         """
-        # Preparar prompt específico para a técnica
+        # ===== PREPARAÇÃO DO PROMPT =====
+        # Cria prompt específico para a técnica escolhida
         info_tecnica = self.descricoes_tecnicas.get(tecnica, {})
         
         prompt = f"""Use a técnica {tecnica.value} para gerar ideias criativas.
@@ -253,14 +268,15 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
 - Desafios potenciais
 - Nível de inovação (1-5)"""
         
-        # Se estiver em modo simulado, gerar ideias mock
+        # ===== GERAÇÃO DAS IDEIAS =====
+        # Verifica se está em modo simulado (sem OpenAI)
         if not self.openai_client:
             return self._gerar_ideias_simuladas(desafio, tecnica)
         
-        # Chamar LLM para gerar ideias
+        # Chama o modelo de linguagem para gerar ideias reais
         resposta_llm = self.chamar_llm(prompt)
         
-        # Parsear resposta em estrutura de ideias
+        # Converte a resposta em estrutura de dados
         ideias = self._parsear_ideias_llm(resposta_llm)
         
         return ideias
@@ -278,7 +294,8 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         """
         ideias = []
         
-        # Templates base por nível de inovação
+        # ===== TEMPLATES DE IDEIAS POR NÍVEL =====
+        # Templates progressivos do conservador ao disruptivo
         templates = [
             {
                 "prefixo": "Otimização Incremental",
@@ -307,8 +324,9 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
             }
         ]
         
+        # ===== GERAÇÃO DE IDEIAS SIMULADAS =====
         for i, template in enumerate(templates):
-            nivel = i + 1
+            nivel = i + 1  # Nível de 1 a 5
             info_nivel = self.niveis_inovacao[nivel]
             
             ideias.append({
@@ -330,16 +348,17 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
                     "Melhoria na satisfação da equipe",
                     "Maior escalabilidade",
                     "ROI positivo em 6 meses"
-                ][:nivel],  # Mais benefícios para ideias mais inovadoras
+                ][:nivel],  # Quanto mais inovadora, mais benefícios
                 "desafios": [
                     "Resistência inicial à mudança",
                     "Investimento necessário",
                     "Curva de aprendizado",
                     "Riscos técnicos"
-                ][:max(1, nivel - 2)]  # Mais desafios para ideias mais radicais
+                ][:max(1, nivel - 2)]  # Ideias mais radicais têm mais desafios
             })
         
-        # Aplicar componentes específicos da técnica
+        # ===== APLICAÇÃO DE COMPONENTES ESPECÍFICOS =====
+        # Adiciona componentes SCAMPER se for a técnica escolhida
         if tecnica == TecnicaBrainstorm.SCAMPER:
             componentes = ["Substituir", "Combinar", "Adaptar", "Modificar", "Eliminar"]
             for i, ideia in enumerate(ideias):
@@ -359,8 +378,9 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         Returns:
             List[Dict]: Ideias estruturadas
         """
-        # Em produção, implementar parser mais sofisticado
-        # Por ora, retorna ideias simuladas como fallback
+        # ===== PARSER SIMPLIFICADO =====
+        # TODO: Implementar parser mais sofisticado em produção
+        # Por enquanto, retorna ideias simuladas como fallback
         return self._gerar_ideias_simuladas("desafio genérico", TecnicaBrainstorm.SCAMPER)
     
     def formatar_resposta_criativa(self, desafio: str, ideias: List[Dict[str, Any]], 
@@ -378,23 +398,24 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         """
         partes = []
         
-        # Cabeçalho
+        # ===== CABEÇALHO DA RESPOSTA =====
         partes.append(f"💡 **Sessão de Brainstorming - {tecnica.value}**\n")
         partes.append(f"**Desafio:** {desafio}\n")
         
-        # Introdução sobre a técnica
+        # ===== DESCRIÇÃO DA TÉCNICA =====
         info_tecnica = self.descricoes_tecnicas.get(tecnica, {})
         if info_tecnica:
             partes.append(f"**Sobre a técnica:** {info_tecnica.get('descricao', '')}\n")
         
-        # Ideias geradas
+        # ===== SEÇÃO DE IDEIAS =====
         partes.append("## 🚀 Ideias Geradas:\n")
         
+        # Formata cada ideia detalhadamente
         for ideia in ideias:
             partes.append(f"### Ideia {ideia['id']}: {ideia['titulo']}")
             partes.append(f"**Nível de Inovação:** {ideia['nivel_texto']}")
             
-            # Componente específico da técnica (se aplicável)
+            # Mostra componente SCAMPER se aplicável
             if 'componente_scamper' in ideia:
                 partes.append(f"**Componente SCAMPER:** {ideia['componente_scamper']}")
             
@@ -415,12 +436,13 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
             
             partes.append("\n---\n")
         
-        # Resumo e próximos passos
+        # ===== RESUMO DA SESSÃO =====
         partes.append("## 📊 Resumo da Sessão:\n")
         partes.append(f"• **Total de ideias geradas:** {len(ideias)}")
         partes.append(f"• **Técnica utilizada:** {tecnica.value}")
         partes.append(f"• **Variação de inovação:** {self.niveis_inovacao[1]['simbolo']} a {self.niveis_inovacao[5]['simbolo']}")
         
+        # ===== PRÓXIMOS PASSOS =====
         partes.append("\n## 🎯 Próximos Passos Sugeridos:")
         partes.append("1. Avaliar viabilidade de cada ideia com a equipe")
         partes.append("2. Selecionar 2-3 ideias mais promissoras")
@@ -440,9 +462,11 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         Returns:
             Dict[str, str]: Ideias para cada componente SCAMPER
         """
+        # ===== APLICAÇÃO SISTEMÁTICA DO SCAMPER =====
         componentes = self.descricoes_tecnicas[TecnicaBrainstorm.SCAMPER]["componentes"]
         ideias_scamper = {}
         
+        # Aplica cada componente SCAMPER ao conceito
         for letra, descricao in componentes.items():
             prompt = f"Para o conceito '{conceito}', {descricao}"
             ideias_scamper[letra] = self.chamar_llm(prompt)
@@ -460,10 +484,12 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         Returns:
             List[str]: Lista de analogias
         """
+        # ===== DOMÍNIOS PARA ANALOGIAS =====
         dominios = ["natureza", "esportes", "música", "culinária", "arquitetura", 
                    "medicina", "militar", "jogos", "arte", "tecnologia"]
         
         analogias = []
+        # Gera analogias em diferentes domínios
         for i in range(min(num_analogias, len(dominios))):
             dominio = dominios[i]
             analogias.append(
@@ -483,6 +509,7 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         Returns:
             Dict: Análise reversa com soluções
         """
+        # ===== ESTRUTURA DO BRAINSTORM REVERSO =====
         return {
             "objetivo_original": objetivo,
             "objetivo_reverso": f"Como garantir que {objetivo} NUNCA aconteça?",
@@ -508,20 +535,23 @@ Gere 5 ideias variando de conservadoras a radicais. Para cada ideia, forneça:
         Returns:
             Dict: Avaliação detalhada
         """
-        # Análise simplificada baseada em palavras-chave
+        # ===== ANÁLISE DE NÍVEL DE INOVAÇÃO =====
+        # Palavras que indicam diferentes níveis de inovação
         palavras_conservadoras = ["melhorar", "otimizar", "ajustar", "refinar"]
         palavras_inovadoras = ["transformar", "revolucionar", "disruptivo", "inédito"]
         
         ideia_lower = ideia.lower()
         
+        # Conta ocorrências de cada tipo de palavra
         score_conservador = sum(1 for p in palavras_conservadoras if p in ideia_lower)
         score_inovador = sum(1 for p in palavras_inovadoras if p in ideia_lower)
         
-        # Determinar nível
+        # ===== DETERMINAÇÃO DO NÍVEL =====
+        # Calcula nível baseado nos scores
         if score_inovador > score_conservador:
-            nivel = min(5, 3 + score_inovador)
+            nivel = min(5, 3 + score_inovador)  # Tende para mais inovador
         else:
-            nivel = max(1, 3 - score_conservador)
+            nivel = max(1, 3 - score_conservador)  # Tende para mais conservador
         
         info_nivel = self.niveis_inovacao[nivel]
         

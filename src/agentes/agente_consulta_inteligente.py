@@ -34,11 +34,13 @@ class AgenteConsultaInteligente(AgenteBase):
             descricao="Especialista em busca semântica e recuperação de informações relevantes"
         )
         
-        # Configurações específicas
-        self.temperatura = 0.2  # Mais determinístico para buscas precisas
-        self.max_resultados = 10
+        # ===== CONFIGURAÇÕES ESPECÍFICAS =====
+        # Temperatura baixa para resultados mais precisos e consistentes
+        self.temperatura = 0.2
+        self.max_resultados = 10  # Limite de resultados por busca
         
-        # Sinônimos para expansão de busca
+        # ===== DICIONÁRIO DE SINÔNIMOS =====
+        # Usado para expandir termos de busca e melhorar resultados
         self.sinonimos = {
             "reunião": ["meeting", "encontro", "sessão", "conferência"],
             "projeto": ["project", "iniciativa", "programa", "empreendimento"],
@@ -50,7 +52,8 @@ class AgenteConsultaInteligente(AgenteBase):
             "solução": ["solution", "resolução", "resposta", "saída"]
         }
         
-        # Mock de base de dados (em produção seria Supabase/ChromaDB)
+        # ===== MOCK DE BASE DE DADOS =====
+        # Simulação de reuniões para testes (em produção usará Supabase/ChromaDB)
         self.mock_reunioes = [
             {
                 "id": "001",
@@ -169,18 +172,21 @@ Sempre responda em português brasileiro."""
         if contexto:
             self.atualizar_contexto(contexto)
         
-        # Extrair termos de busca
+        # ===== EXTRAÇÃO E EXPANSÃO DE TERMOS =====
+        # Extrai termos relevantes e expande com sinônimos
         termos = self.extrair_termos_busca(mensagem)
         termos_expandidos = self.expandir_termos(termos)
         
         print(f"[CONSULTA] Termos de busca: {termos}")
         print(f"[CONSULTA] Termos expandidos: {termos_expandidos}")
         
-        # Buscar em diferentes fontes
+        # ===== BUSCA EM MÚLTIPLAS FONTES =====
+        # Realiza busca em reuniões e documentos separadamente
         resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
         resultados_documentos = self.buscar_em_documentos(termos_expandidos)
         
-        # Consolidar e formatar resposta
+        # ===== CONSOLIDAÇÃO DOS RESULTADOS =====
+        # Formata todos os resultados em uma resposta estruturada
         resposta = self.formatar_resposta_busca(
             mensagem, 
             resultados_reunioes, 
@@ -203,7 +209,8 @@ Sempre responda em português brasileiro."""
         Returns:
             List[str]: Lista de termos para busca
         """
-        # Remover stop words comuns
+        # ===== LISTA DE STOP WORDS EM PORTUGUÊS =====
+        # Palavras comuns que não agregam valor à busca
         stop_words = {
             "o", "a", "os", "as", "de", "da", "do", "das", "dos", "em", "na", "no",
             "nas", "nos", "por", "para", "com", "sem", "sob", "sobre", "é", "são",
@@ -213,23 +220,25 @@ Sempre responda em português brasileiro."""
             "um", "uma", "uns", "umas"
         }
         
-        # Tokenizar e filtrar
+        # ===== TOKENIZAÇÃO E FILTRAGEM =====
         palavras = mensagem.lower().split()
         termos = []
         
         for palavra in palavras:
-            # Remover pontuação
+            # Remove pontuação mantendo apenas letras e números
             palavra_limpa = re.sub(r'[^\w\s]', '', palavra)
             
-            # Adicionar se não for stop word e tiver mais de 2 caracteres
+            # Adiciona termo se for válido (não é stop word e tem mais de 2 caracteres)
             if palavra_limpa and palavra_limpa not in stop_words and len(palavra_limpa) > 2:
                 termos.append(palavra_limpa)
         
-        # Identificar frases importantes (palavras consecutivas capitalizadas)
+        # ===== IDENTIFICAÇÃO DE FRASES IMPORTANTES =====
+        # Captura nomes próprios e termos compostos (ex: "Projeto AURALIS")
         frases = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*', mensagem)
         termos.extend([frase.lower() for frase in frases])
         
-        return list(set(termos))  # Remover duplicatas
+        # Remove duplicatas mantendo ordem de inserção
+        return list(set(termos))
     
     def expandir_termos(self, termos: List[str]) -> List[str]:
         """
@@ -244,15 +253,16 @@ Sempre responda em português brasileiro."""
         termos_expandidos = termos.copy()
         
         for termo in termos:
-            # Adicionar sinônimos se existirem
+            # ===== EXPANSÃO COM SINÔNIMOS =====
             if termo in self.sinonimos:
                 termos_expandidos.extend(self.sinonimos[termo])
             
-            # Adicionar variações (plural/singular simplificado)
+            # ===== VARIAÇÕES MORFOLÓGICAS SIMPLES =====
+            # Tenta criar plural/singular básico
             if termo.endswith('s'):
-                termos_expandidos.append(termo[:-1])  # Remove 's'
+                termos_expandidos.append(termo[:-1])  # Remove 's' para singular
             else:
-                termos_expandidos.append(termo + 's')  # Adiciona 's'
+                termos_expandidos.append(termo + 's')  # Adiciona 's' para plural
         
         return list(set(termos_expandidos))  # Remover duplicatas
     
@@ -273,22 +283,23 @@ Sempre responda em português brasileiro."""
         texto_completo = f"{titulo} {autor} {texto}".lower()
         relevancia = 0
         
+        # ===== CÁLCULO DE RELEVÂNCIA POR TERMO =====
         for termo in termos:
             termo_lower = termo.lower()
             
-            # Contar ocorrências
+            # Conta ocorrências do termo no texto
             ocorrencias = texto_completo.count(termo_lower)
             relevancia += ocorrencias
             
-            # Bonus se aparece no título (peso 5)
+            # Bônus se o termo aparece no título (peso 5)
             if termo_lower in titulo.lower():
                 relevancia += 5
             
-            # Bonus se é o autor (peso 3)
+            # Bônus se o termo é o nome do autor (peso 3)
             if termo_lower in autor.lower():
                 relevancia += 3
             
-            # Bonus por match exato de frase
+            # Bônus especial para correspondência exata de frases (peso 10)
             if len(termo.split()) > 1 and termo_lower in texto_completo:
                 relevancia += 10
         
@@ -307,12 +318,13 @@ Sempre responda em português brasileiro."""
         resultados = []
         
         for reuniao in self.mock_reunioes:
-            # Criar texto completo para busca
+            # ===== CRIAÇÃO DE TEXTO COMPLETO PARA BUSCA =====
+            # Concatena todos os campos relevantes da reunião
             texto_busca = f"{reuniao['titulo']} {' '.join(reuniao['participantes'])} "
             texto_busca += f"{' '.join(reuniao['pauta'])} {' '.join(reuniao['decisoes'])} "
             texto_busca += f"{reuniao['transcricao']} {' '.join(reuniao['tags'])}"
             
-            # Calcular relevância
+            # Calcula score de relevância para esta reunião
             relevancia = self.calcular_relevancia(
                 texto_busca,
                 termos,
@@ -331,7 +343,8 @@ Sempre responda em português brasileiro."""
                     )
                 })
         
-        # Ordenar por relevância
+        # ===== ORDENAÇÃO E LIMITAÇÃO =====
+        # Ordena por relevância decrescente e limita resultados
         resultados.sort(key=lambda x: x['relevancia'], reverse=True)
         
         return resultados[:self.max_resultados]
@@ -349,7 +362,7 @@ Sempre responda em português brasileiro."""
         resultados = []
         
         for doc in self.mock_documentos:
-            # Criar texto completo para busca
+            # ===== PREPARAÇÃO DO TEXTO DO DOCUMENTO =====
             texto_busca = f"{doc['titulo']} {doc['autor']} {doc['conteudo']} {' '.join(doc['tags'])}"
             
             # Calcular relevância
@@ -371,7 +384,8 @@ Sempre responda em português brasileiro."""
                     )
                 })
         
-        # Ordenar por relevância
+        # ===== ORDENAÇÃO E LIMITAÇÃO =====
+        # Ordena por relevância decrescente e limita resultados
         resultados.sort(key=lambda x: x['relevancia'], reverse=True)
         
         return resultados[:self.max_resultados]
@@ -402,19 +416,20 @@ Sempre responda em português brasileiro."""
                 if pos == -1:
                     break
                 
-                # Extrair trecho com contexto
+                # ===== EXTRAÇÃO DE TRECHO COM CONTEXTO =====
+                # Define limites do trecho considerando o contexto
                 inicio_trecho = max(0, pos - contexto_chars)
                 fim_trecho = min(len(texto), pos + len(termo) + contexto_chars)
                 
                 trecho = texto[inicio_trecho:fim_trecho]
                 
-                # Adicionar reticências se truncado
+                # Adiciona reticências para indicar truncamento
                 if inicio_trecho > 0:
                     trecho = "..." + trecho
                 if fim_trecho < len(texto):
                     trecho = trecho + "..."
                 
-                # Destacar termo no trecho
+                # Destaca o termo encontrado usando markdown
                 trecho_destacado = trecho.replace(
                     termo, 
                     f"**{termo}**"
@@ -425,11 +440,12 @@ Sempre responda em português brasileiro."""
                 
                 inicio = pos + 1
                 
-                # Limitar número de trechos por termo
+                # Limita a 3 trechos por termo para evitar excesso
                 if len(trechos) >= 3:
                     break
         
-        return trechos[:5]  # Máximo 5 trechos total
+        # Retorna no máximo 5 trechos no total
+        return trechos[:5]
     
     def formatar_resposta_busca(self, consulta: str, resultados_reunioes: List[Dict], 
                                resultados_documentos: List[Dict], termos: List[str]) -> str:
@@ -445,32 +461,35 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resposta formatada
         """
-        # Se não encontrou nada
+        # ===== VERIFICAÇÃO DE RESULTADOS VAZIOS =====
         if not resultados_reunioes and not resultados_documentos:
             return self._formatar_resposta_vazia(consulta, termos)
         
-        # Construir resposta
+        # ===== CONSTRUÇÃO DA RESPOSTA FORMATADA =====
         partes = []
         
-        # Resumo executivo
+        # Cabeçalho com resumo dos resultados
         total_resultados = len(resultados_reunioes) + len(resultados_documentos)
         partes.append(f"🔍 **Encontrei {total_resultados} resultado(s) relevante(s) para sua busca.**\n")
         
-        # Resultados de reuniões
+        # ===== SEÇÃO DE REUNIÕES =====
         if resultados_reunioes:
             partes.append("### 📅 Reuniões Encontradas:\n")
             
-            for i, resultado in enumerate(resultados_reunioes[:3], 1):  # Top 3
+            # Mostra apenas as 3 reuniões mais relevantes
+            for i, resultado in enumerate(resultados_reunioes[:3], 1):
                 reuniao = resultado['dados']
                 partes.append(f"**{i}. {reuniao['titulo']}**")
                 partes.append(f"   - Data: {reuniao['data']} às {reuniao['hora']}")
                 partes.append(f"   - Participantes: {', '.join(reuniao['participantes'][:3])}")
                 
-                # Decisões relevantes
+                # ===== FILTRA DECISÕES RELEVANTES =====
+                # Mostra apenas decisões que contêm os termos buscados
                 decisoes_relevantes = [d for d in reuniao['decisoes'] 
                                      if any(t.lower() in d.lower() for t in termos)]
                 if decisoes_relevantes:
                     partes.append(f"   - Decisões relacionadas:")
+                    # Limita a 2 decisões por reunião
                     for decisao in decisoes_relevantes[:2]:
                         partes.append(f"     • {decisao}")
                 
@@ -480,11 +499,12 @@ Sempre responda em português brasileiro."""
                 
                 partes.append("")  # Linha em branco
         
-        # Resultados de documentos
+        # ===== SEÇÃO DE DOCUMENTOS =====
         if resultados_documentos:
             partes.append("### 📄 Documentos Encontrados:\n")
             
-            for i, resultado in enumerate(resultados_documentos[:2], 1):  # Top 2
+            # Mostra apenas os 2 documentos mais relevantes
+            for i, resultado in enumerate(resultados_documentos[:2], 1):
                 doc = resultado['dados']
                 partes.append(f"**{i}. {doc['titulo']}**")
                 partes.append(f"   - Tipo: {doc['tipo']}")
@@ -497,7 +517,8 @@ Sempre responda em português brasileiro."""
                 
                 partes.append("")
         
-        # Sugestões adicionais
+        # ===== SUGESTÕES PARA POUCOS RESULTADOS =====
+        # Se encontrou poucos resultados, oferece dicas de busca
         if total_resultados < 3:
             partes.append("\n💡 **Sugestões para refinar sua busca:**")
             partes.append("- Tente usar termos mais específicos")
@@ -517,6 +538,7 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resposta formatada
         """
+        # ===== MENSAGEM PARA BUSCA SEM RESULTADOS =====
         resposta = [
             "🔍 **Não encontrei resultados para sua busca.**\n",
             f"Termos pesquisados: {', '.join(termos)}\n",
@@ -543,7 +565,9 @@ Sempre responda em português brasileiro."""
         """
         resultados = []
         
+        # ===== FILTRA REUNIÕES POR PERÍODO =====
         for reuniao in self.mock_reunioes:
+            # Verifica se a data da reunião está dentro do intervalo
             if data_inicio <= reuniao['data'] <= data_fim:
                 resultados.append({
                     "tipo": "reunião",
@@ -565,8 +589,11 @@ Sempre responda em português brasileiro."""
         resultados = []
         nome_lower = nome_participante.lower()
         
+        # ===== BUSCA POR NOME DE PARTICIPANTE =====
         for reuniao in self.mock_reunioes:
+            # Converte nomes para minúsculas para busca case-insensitive
             participantes_lower = [p.lower() for p in reuniao['participantes']]
+            # Verifica se o nome buscado está contido em algum participante
             if any(nome_lower in p for p in participantes_lower):
                 resultados.append({
                     "tipo": "reunião",
@@ -586,14 +613,16 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resumo formatado
         """
-        # Buscar informações sobre o tópico
+        # ===== BUSCA INICIAL SOBRE O TÓPICO =====
         termos = self.extrair_termos_busca(topico)
         resultados_reunioes = self.buscar_em_reunioes(termos)
         
+        # Retorna mensagem se não há dados suficientes
         if not resultados_reunioes:
             return f"Não encontrei informações suficientes sobre '{topico}' para gerar um resumo."
         
-        # Extrair informações relevantes
+        # ===== EXTRAÇÃO E AGREGAÇÃO DE DADOS =====
+        # Coleta todas as informações relevantes das reuniões encontradas
         todas_decisoes = []
         todos_participantes = []
         todas_datas = []
@@ -604,10 +633,11 @@ Sempre responda em português brasileiro."""
             todos_participantes.extend(reuniao['participantes'])
             todas_datas.append(reuniao['data'])
         
-        # Contar participantes mais frequentes
+        # ===== ANÁLISE DE FREQUÊNCIA =====
+        # Identifica os 3 participantes mais ativos no tópico
         participantes_freq = Counter(todos_participantes).most_common(3)
         
-        # Formatar resumo
+        # ===== FORMATAÇÃO DO RESUMO =====
         resumo = [
             f"📊 **Resumo sobre: {topico}**\n",
             f"**Período analisado:** {min(todas_datas)} a {max(todas_datas)}",
@@ -618,7 +648,9 @@ Sempre responda em português brasileiro."""
         for participante, freq in participantes_freq:
             resumo.append(f"• {participante} ({freq} reuniões)")
         
+        # ===== LISTA DE DECISÕES RELEVANTES =====
         resumo.append("\n**Principais decisões/pontos:**")
+        # Mostra até 5 decisões que contêm os termos do tópico
         for decisao in todas_decisoes[:5]:
             if any(t.lower() in decisao.lower() for t in termos):
                 resumo.append(f"• {decisao}")

@@ -38,24 +38,27 @@ class SistemaAgentes:
         """
         self.modo_debug = modo_debug
         
-        # Sistema de comunicação
+        # ===== SISTEMA DE COMUNICAÇÃO ENTRE AGENTES =====
         self.comunicacao = ComunicacaoAgentes()
         
-        # Contexto global compartilhado
+        # ===== CONTEXTO GLOBAL COMPARTILHADO =====
+        # Informações compartilhadas entre todos os agentes
         self.contexto_global = {
             "sistema": "AURALIS",
             "versao": "1.0.0",
             "inicializado_em": datetime.now().isoformat(),
-            "modo": "simulado" if not os.getenv("OPENAI_API_KEY") else "producao"
+            "modo": "simulado" if not os.getenv("OPENAI_API_KEY") else "produção"
         }
         
-        # Inicializar agentes
+        # ===== INICIALIZAÇÃO DOS AGENTES =====
         self._inicializar_agentes()
         
-        # Configurar otimizador
+        # ===== CONFIGURAÇÃO DO OTIMIZADOR =====
+        # Sistema de cache e otimização de performance
         self.otimizador = otimizador_global
         
-        # Estatísticas do sistema
+        # ===== ESTATÍSTICAS DO SISTEMA =====
+        # Métricas para monitoramento e otimização
         self.estatisticas_sistema = {
             "total_interacoes": 0,
             "tempo_total_processamento": 0.0,
@@ -65,27 +68,29 @@ class SistemaAgentes:
         print(f"[SISTEMA] Sistema AURALIS inicializado em modo: {self.contexto_global['modo']}")
     
     def _inicializar_agentes(self):
-        """Inicializa todos os agentes do sistema"""
-        # Criar instâncias dos agentes
+        """Inicializa todos os agentes do sistema."""
+        # ===== CRIAÇÃO DAS INSTÂNCIAS =====
         self.orquestrador = AgenteOrquestrador()
         self.consultor = AgenteConsultaInteligente()
         self.criativo = AgenteBrainstorm()
         
-        # Configurar referências diretas no orquestrador
+        # ===== CONFIGURAÇÃO DE REFERÊNCIAS =====
+        # Permite que o orquestrador acesse diretamente os outros agentes
         self.orquestrador.definir_agentes(
             agente_consulta=self.consultor,
             agente_brainstorm=self.criativo
         )
         
-        # Registrar agentes no sistema de comunicação
+        # ===== REGISTRO NO SISTEMA DE COMUNICAÇÃO =====
         self._registrar_agentes()
         
         if self.modo_debug:
             print("[SISTEMA] Todos os agentes foram inicializados")
     
     def _registrar_agentes(self):
-        """Registra agentes no sistema de comunicação"""
-        # Registrar cada agente com seus callbacks
+        """Registra agentes no sistema de comunicação."""
+        # ===== REGISTRO COM CALLBACKS =====
+        # Cada agente é registrado com sua função de callback
         self.comunicacao.registrar_agente(
             self.orquestrador.nome,
             self.orquestrador,
@@ -118,7 +123,7 @@ class SistemaAgentes:
             if self.modo_debug:
                 print(f"[CALLBACK] {agente.nome} recebeu mensagem de {mensagem.remetente}")
             
-            # Processar mensagem através do agente
+            # Processa mensagem através do agente específico
             if hasattr(agente, 'processar_mensagem'):
                 return agente.processar_mensagem(
                     mensagem.conteudo.get("mensagem", ""),
@@ -141,15 +146,17 @@ class SistemaAgentes:
         inicio = datetime.now()
         
         try:
-            # Atualizar contexto global
+            # ===== PREPARAÇÃO DO CONTEXTO =====
+            # Combina contexto global com contexto específico
             contexto_completo = self.contexto_global.copy()
             if contexto:
                 contexto_completo.update(contexto)
             
-            # Adicionar timestamp
+            # Adiciona marca temporal à interação
             contexto_completo["timestamp_interacao"] = datetime.now().isoformat()
             
-            # Verificar cache primeiro
+            # ===== VERIFICAÇÃO DE CACHE =====
+            # Busca resposta em cache para economizar processamento
             cache_key = self.otimizador.cache._gerar_chave(mensagem, contexto_completo)
             resposta_cache = self.otimizador.cache.get(cache_key)
             
@@ -158,13 +165,14 @@ class SistemaAgentes:
                     print("[SISTEMA] Resposta encontrada no cache")
                 return resposta_cache
             
-            # Processar através do orquestrador
+            # ===== PROCESSAMENTO PRINCIPAL =====
+            # Envia mensagem para o orquestrador processar
             resposta = self.orquestrador.processar_mensagem(mensagem, contexto_completo)
             
-            # Armazenar no cache
+            # Armazena resposta no cache para futuras consultas
             self.otimizador.cache.set(cache_key, resposta)
             
-            # Atualizar estatísticas
+            # ===== ATUALIZAÇÃO DE ESTATÍSTICAS =====
             tempo_processamento = (datetime.now() - inicio).total_seconds()
             self.estatisticas_sistema["total_interacoes"] += 1
             self.estatisticas_sistema["tempo_total_processamento"] += tempo_processamento
@@ -175,6 +183,7 @@ class SistemaAgentes:
             return resposta
             
         except Exception as e:
+            # ===== TRATAMENTO DE ERROS =====
             self.estatisticas_sistema["erros"] += 1
             erro_msg = f"Erro ao processar mensagem: {str(e)}"
             
@@ -195,6 +204,7 @@ class SistemaAgentes:
         """
         print(f"[SISTEMA] Iniciando análise completa sobre: {topico}")
         
+        # ===== ESTRUTURA DE RESULTADO =====
         resultado = {
             "topico": topico,
             "timestamp": datetime.now().isoformat(),
@@ -202,7 +212,7 @@ class SistemaAgentes:
         }
         
         try:
-            # 1. Buscar informações existentes
+            # ===== FASE 1: BUSCA DE INFORMAÇÕES =====
             print("[SISTEMA] Fase 1: Buscando informações...")
             consulta = f"Buscar todas as informações sobre {topico}"
             resultado["analises"]["informacoes"] = self.consultor.processar_mensagem(
@@ -210,7 +220,7 @@ class SistemaAgentes:
                 self.contexto_global
             )
             
-            # 2. Gerar ideias criativas
+            # ===== FASE 2: GERAÇÃO DE IDEIAS =====
             print("[SISTEMA] Fase 2: Gerando ideias criativas...")
             brainstorm = f"Gerar ideias inovadoras para {topico}"
             resultado["analises"]["ideias"] = self.criativo.processar_mensagem(
@@ -218,7 +228,7 @@ class SistemaAgentes:
                 self.contexto_global
             )
             
-            # 3. Análise executiva pelo orquestrador
+            # ===== FASE 3: CONSOLIDAÇÃO EXECUTIVA =====
             print("[SISTEMA] Fase 3: Consolidando análise executiva...")
             resultado["resumo_executivo"] = self.orquestrador.gerar_resumo_executivo(
                 topico,
@@ -244,6 +254,7 @@ class SistemaAgentes:
         Returns:
             str: Resultados da busca
         """
+        # Prepara contexto com filtros opcionais
         contexto = self.contexto_global.copy()
         if filtros:
             contexto["filtros"] = filtros
@@ -261,6 +272,7 @@ class SistemaAgentes:
         Returns:
             str: Ideias geradas
         """
+        # Prepara contexto com técnica específica se fornecida
         contexto = self.contexto_global.copy()
         if tecnica:
             contexto["tecnica_preferida"] = tecnica
@@ -276,7 +288,8 @@ class SistemaAgentes:
         """
         self.contexto_global.update(novo_contexto)
         
-        # Propagar para todos os agentes
+        # ===== PROPAGAÇÃO DO CONTEXTO =====
+        # Atualiza contexto em todos os agentes
         self.orquestrador.atualizar_contexto(novo_contexto)
         self.consultor.atualizar_contexto(novo_contexto)
         self.criativo.atualizar_contexto(novo_contexto)
@@ -288,12 +301,14 @@ class SistemaAgentes:
         Returns:
             Dict: Estatísticas detalhadas
         """
-        # Coletar estatísticas de cada componente
+        # ===== COLETA DE ESTATÍSTICAS =====
+        # Agrega estatísticas de todos os componentes
         stats = {
             "sistema": {
                 "modo": self.contexto_global["modo"],
                 "inicializado_em": self.contexto_global["inicializado_em"],
                 "total_interacoes": self.estatisticas_sistema["total_interacoes"],
+                # Calcula tempo médio evitando divisão por zero
                 "tempo_medio_resposta": (
                     self.estatisticas_sistema["tempo_total_processamento"] / 
                     max(1, self.estatisticas_sistema["total_interacoes"])
@@ -376,19 +391,17 @@ class SistemaAgentes:
         return json_data
     
     def resetar_sistema(self):
-        """Reseta o sistema para estado inicial"""
-        # Limpar históricos dos agentes
+        """Reseta o sistema para estado inicial."""
+        # ===== LIMPEZA DE HISTÓRICOS =====
         self.orquestrador.limpar_historico()
         self.consultor.limpar_historico()
         self.criativo.limpar_historico()
         
-        # Limpar cache
+        # ===== LIMPEZA DE CACHE E FILAS =====
         self.otimizador.limpar_cache()
-        
-        # Limpar filas de comunicação
         self.comunicacao.limpar_filas()
         
-        # Resetar estatísticas
+        # ===== RESET DE ESTATÍSTICAS =====
         self.estatisticas_sistema = {
             "total_interacoes": 0,
             "tempo_total_processamento": 0.0,
@@ -398,9 +411,11 @@ class SistemaAgentes:
         print("[SISTEMA] Sistema resetado com sucesso")
     
     def modo_teste(self):
-        """Executa testes básicos do sistema"""
+        """Executa testes básicos do sistema."""
         print("\n=== MODO TESTE AURALIS ===\n")
         
+        # ===== CASOS DE TESTE =====
+        # Testa diferentes tipos de intenções
         testes = [
             ("Buscar reuniões sobre transformação digital", "CONSULTA"),
             ("Gerar ideias para melhorar a comunicação entre equipes", "BRAINSTORM"),
@@ -408,6 +423,7 @@ class SistemaAgentes:
             ("Buscar informações sobre IA e gerar ideias inovadoras", "MÚLTIPLA")
         ]
         
+        # ===== EXECUÇÃO DOS TESTES =====
         for pergunta, tipo_esperado in testes:
             print(f"📝 Teste: {pergunta}")
             print(f"   Tipo esperado: {tipo_esperado}")
@@ -416,7 +432,7 @@ class SistemaAgentes:
             print(f"   ✅ Resposta recebida ({len(resposta)} caracteres)")
             print(f"   Preview: {resposta[:100]}...\n")
         
-        # Mostrar estatísticas
+        # ===== EXIBIÇÃO DE ESTATÍSTICAS =====
         stats = self.obter_estatisticas()
         print("\n📊 Estatísticas do Teste:")
         print(f"   Total de interações: {stats['sistema']['total_interacoes']}")
@@ -429,7 +445,8 @@ class SistemaAgentes:
         return f"SistemaAgentes(modo={self.contexto_global['modo']}, agentes=3, interacoes={self.estatisticas_sistema['total_interacoes']})"
 
 
-# Funções auxiliares para facilitar o uso
+# ===== FUNÇÕES AUXILIARES =====
+# Funções de conveniência para facilitar o uso do sistema
 def criar_sistema_auralis(modo_debug: bool = False) -> SistemaAgentes:
     """
     Cria e retorna uma instância do Sistema AURALIS.

@@ -16,12 +16,15 @@ else:
 
 
 class TipoIntencao(Enum):
-    """Tipos de intenção que o orquestrador pode identificar"""
-    CONSULTA = "CONSULTA"
-    BRAINSTORM = "BRAINSTORM"
-    ANALISE = "ANALISE"
-    GERAL = "GERAL"
-    MULTIPLA = "MULTIPLA"
+    """Tipos de intenção que o orquestrador pode identificar.
+    
+    Cada tipo direciona para um agente especializado diferente.
+    """
+    CONSULTA = "CONSULTA"      # Busca de informações
+    BRAINSTORM = "BRAINSTORM"  # Geração de ideias
+    ANALISE = "ANALISE"        # Análise de dados
+    GERAL = "GERAL"            # Consultas gerais
+    MULTIPLA = "MULTIPLA"      # Múltiplas intenções
 
 
 class AgenteOrquestrador(AgenteBase):
@@ -41,19 +44,23 @@ class AgenteOrquestrador(AgenteBase):
             descricao="Agente maestro que coordena e direciona as interações no sistema"
         )
         
-        # Mapa de agentes disponíveis
+        # ===== MAPA DE AGENTES ESPECIALIZADOS =====
+        # Mapeia cada tipo de intenção para o nome do agente responsável
         self.mapa_agentes = {
             TipoIntencao.CONSULTA: "Consultor Inteligente AURALIS",
             TipoIntencao.BRAINSTORM: "Agente Criativo AURALIS",
             TipoIntencao.ANALISE: "Analista AURALIS"
         }
         
-        # Referências diretas aos agentes (serão definidas pelo sistema)
+        # ===== REFERÊNCIAS AOS AGENTES =====
+        # Referências diretas aos agentes especializados
+        # Serão definidas pelo sistema através do método definir_agentes()
         self.agente_consulta = None
         self.agente_brainstorm = None
         self.agente_analise = None
         
-        # Palavras-chave para identificação de intenções
+        # ===== PALAVRAS-CHAVE PARA IDENTIFICAÇÃO =====
+        # Dicionário de palavras-chave para identificar a intenção do usuário
         self.palavras_chave = {
             TipoIntencao.CONSULTA: [
                 "buscar", "encontrar", "procurar", "localizar", "quando", "onde",
@@ -72,8 +79,9 @@ class AgenteOrquestrador(AgenteBase):
             ]
         }
         
-        # Configurações
-        self.temperatura = 0.3  # Mais determinístico para orquestração
+        # ===== CONFIGURAÇÕES DO MODELO =====
+        # Temperatura baixa para respostas mais consistentes e determinísticas
+        self.temperatura = 0.3
         
     def get_prompt_sistema(self) -> str:
         """
@@ -121,21 +129,24 @@ Formato de resposta quando delegar:
         """
         mensagem_lower = mensagem.lower()
         
-        # Calcular scores para cada tipo de intenção
+        # ===== CÁLCULO DE SCORES =====
+        # Calcula pontos para cada tipo de intenção baseado nas palavras-chave encontradas
         scores = {}
         
         for tipo_intencao, palavras in self.palavras_chave.items():
+            # Conta quantas palavras-chave estão presentes na mensagem
             score = sum(1 for palavra in palavras if palavra in mensagem_lower)
             scores[tipo_intencao] = score
         
         # Identificar intenção com maior score
         max_score = max(scores.values())
         
-        # Se nenhuma palavra-chave foi encontrada, é uma consulta geral
+        # Se nenhuma palavra-chave foi encontrada, classifica como consulta geral
         if max_score == 0:
             return TipoIntencao.GERAL, 0.5
         
-        # Verificar se há múltiplas intenções com scores altos
+        # ===== DETECÇÃO DE MÚLTIPLAS INTENÇÕES =====
+        # Verifica se há múltiplas intenções com scores próximos (70% do máximo)
         intencoes_altas = [t for t, s in scores.items() if s >= max_score * 0.7 and s > 0]
         
         if len(intencoes_altas) > 1:
@@ -143,7 +154,8 @@ Formato de resposta quando delegar:
         
         # Retornar a intenção com maior score
         intencao_principal = max(scores, key=scores.get)
-        confianca = min(scores[intencao_principal] / 5.0, 1.0)  # Normalizar confiança
+        # Normaliza a confiança entre 0 e 1 (máximo de 5 palavras-chave)
+        confianca = min(scores[intencao_principal] / 5.0, 1.0)
         
         return intencao_principal, confianca
     
@@ -184,12 +196,12 @@ Formato de resposta quando delegar:
         # Identificar intenção
         intencao, confianca = self.identificar_intencao(mensagem)
         
-        # Log para debug
+        # Log para depuração - mostra a intenção identificada
         print(f"[ORQUESTRADOR] Intenção identificada: {intencao.value} (confiança: {confianca:.2f})")
         
-        # Processar baseado na intenção
+        # ===== PROCESSAMENTO BASEADO NA INTENÇÃO =====
         if intencao == TipoIntencao.MULTIPLA:
-            # Processar múltiplas intenções
+            # Identifica e processa cada intenção separadamente
             intencoes = self.identificar_multiplas_intencoes(mensagem)
             resposta = self._processar_multiplas_intencoes(mensagem, intencoes, contexto)
             
@@ -221,18 +233,20 @@ Formato de resposta quando delegar:
         """
         respostas = []
         
-        # Introdução
+        # Mensagem introdutória para o usuário
         respostas.append("Identifiquei múltiplos aspectos na sua solicitação. Vou abordar cada um:\n")
         
-        # Processar cada intenção
+        # ===== PROCESSAMENTO DE CADA INTENÇÃO =====
         for i, intencao in enumerate(intencoes, 1):
+            # Pula intenções gerais (já processadas)
             if intencao == TipoIntencao.GERAL:
                 continue
                 
+            # Adiciona subtítulo formatado para cada seção
             subtitulo = f"\n**{i}. {self._get_titulo_intencao(intencao)}**\n"
             respostas.append(subtitulo)
             
-            # Delegar para agente apropriado
+            # Delega para o agente especializado apropriado
             resposta_agente = self._delegar_para_agente(mensagem, intencao, contexto)
             respostas.append(resposta_agente)
         
@@ -251,7 +265,8 @@ Formato de resposta quando delegar:
         Returns:
             str: Resposta do agente especializado
         """
-        # Verificar se temos referência direta ao agente
+        # ===== DELEGAÇÃO PARA AGENTES ESPECIALIZADOS =====
+        # Verifica se temos referência direta ao agente apropriado
         if intencao == TipoIntencao.CONSULTA and self.agente_consulta:
             return self.agente_consulta.processar_mensagem(mensagem, contexto)
             
@@ -259,12 +274,12 @@ Formato de resposta quando delegar:
             return self.agente_brainstorm.processar_mensagem(mensagem, contexto)
             
         elif intencao == TipoIntencao.ANALISE and self.agente_analise:
-            # Se não temos agente de análise, usar consulta
+            # Se não temos agente de análise específico, usa o de consulta
             agente = self.agente_analise or self.agente_consulta
             if agente:
                 return agente.processar_mensagem(mensagem, contexto)
         
-        # Fallback: processar localmente
+        # Fallback: se não há agente disponível, processa localmente
         return self._processar_localmente(mensagem, intencao, contexto)
     
     def _processar_localmente(self, mensagem: str, intencao: TipoIntencao, 
@@ -280,7 +295,7 @@ Formato de resposta quando delegar:
         Returns:
             str: Resposta processada localmente
         """
-        # Preparar prompt com contexto
+        # Prepara prompt específico para processamento local
         prompt = f"""Como Orquestrador do AURALIS, processe esta solicitação de tipo {intencao.value}:
 
 Mensagem do usuário: {mensagem}
@@ -290,7 +305,7 @@ Contexto disponível:
 
 Forneça uma resposta apropriada, clara e profissional."""
         
-        # Obter resposta do LLM
+        # Chama o modelo de linguagem para processar a solicitação
         resposta = self.chamar_llm(prompt)
         
         return resposta
@@ -393,32 +408,37 @@ Formato profissional e conciso."""
             "analises": {}
         }
         
-        # Consultar informações existentes
+        # ===== FASE 1: CONSULTA DE INFORMAÇÕES =====
+        # Busca todas as informações existentes sobre o tópico
         if self.agente_consulta:
             resultados["analises"]["informacoes"] = self.agente_consulta.processar_mensagem(
                 f"Buscar todas as informações sobre {topico}",
                 self.contexto_atual
             )
         
-        # Gerar ideias criativas
+        # ===== FASE 2: GERAÇÃO DE IDEIAS =====
+        # Solicita ideias criativas e inovadoras sobre o tópico
         if self.agente_brainstorm:
             resultados["analises"]["ideias"] = self.agente_brainstorm.processar_mensagem(
                 f"Gerar ideias criativas para {topico}",
                 self.contexto_atual
             )
         
-        # Análise de dados (se disponível)
+        # ===== FASE 3: ANÁLISE DE DADOS =====
+        # Analisa padrões, tendências e insights sobre o tópico
         if self.agente_analise:
             resultados["analises"]["analise"] = self.agente_analise.processar_mensagem(
                 f"Analisar padrões e tendências relacionados a {topico}",
                 self.contexto_atual
             )
         
-        # Gerar resumo executivo
+        # ===== FASE 4: CONSOLIDAÇÃO =====
+        # Gera um resumo executivo consolidando todas as análises
         resultados["resumo_executivo"] = self.gerar_resumo_executivo(topico, resultados["analises"])
         
         return resultados
     
     def __repr__(self):
+        # Conta quantos agentes especializados estão conectados
         agentes_conectados = sum(1 for a in [self.agente_consulta, self.agente_brainstorm, self.agente_analise] if a)
         return f"AgenteOrquestrador(agentes_conectados={agentes_conectados})"

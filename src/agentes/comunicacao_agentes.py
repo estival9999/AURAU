@@ -14,45 +14,54 @@ import json
 
 
 class TipoMensagem(Enum):
-    """Tipos de mensagem no sistema"""
-    SOLICITACAO = "SOLICITACAO"
-    RESPOSTA = "RESPOSTA"
-    NOTIFICACAO = "NOTIFICACAO"
-    ERRO = "ERRO"
-    BROADCAST = "BROADCAST"
-    HEARTBEAT = "HEARTBEAT"
-    STATUS = "STATUS"
+    """Tipos de mensagem no sistema de comunicação.
+    
+    Define os diferentes tipos de mensagens que podem trafegar entre agentes.
+    """
+    SOLICITACAO = "SOLICITACAO"    # Solicitação de processamento
+    RESPOSTA = "RESPOSTA"          # Resposta a uma solicitação
+    NOTIFICACAO = "NOTIFICACAO"    # Notificação de evento
+    ERRO = "ERRO"                  # Mensagem de erro
+    BROADCAST = "BROADCAST"        # Mensagem para todos
+    HEARTBEAT = "HEARTBEAT"        # Verificação de vida
+    STATUS = "STATUS"              # Atualização de status
 
 
 class StatusMensagem(Enum):
-    """Status de processamento da mensagem"""
-    PENDENTE = "PENDENTE"
-    PROCESSANDO = "PROCESSANDO"
-    CONCLUIDO = "CONCLUIDO"
-    ERRO = "ERRO"
-    CANCELADO = "CANCELADO"
-    TIMEOUT = "TIMEOUT"
+    """Status de processamento da mensagem.
+    
+    Rastreia o ciclo de vida de cada mensagem no sistema.
+    """
+    PENDENTE = "PENDENTE"          # Aguardando processamento
+    PROCESSANDO = "PROCESSANDO"    # Em processamento
+    CONCLUIDO = "CONCLUIDO"        # Processamento concluído
+    ERRO = "ERRO"                  # Erro no processamento
+    CANCELADO = "CANCELADO"        # Processamento cancelado
+    TIMEOUT = "TIMEOUT"            # Tempo limite excedido
 
 
 @dataclass
 class MensagemAgente:
-    """Estrutura de dados para mensagens entre agentes"""
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    tipo: TipoMensagem = TipoMensagem.SOLICITACAO
-    remetente: str = ""
-    destinatario: str = ""
-    conteudo: Dict[str, Any] = field(default_factory=dict)
-    contexto: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    status: StatusMensagem = StatusMensagem.PENDENTE
-    prioridade: int = 5  # 1-10 (1 = mais alta)
-    resposta_para: Optional[str] = None  # ID da mensagem original se for resposta
-    tentativas: int = 0
-    max_tentativas: int = 3
-    timeout_segundos: int = 30
+    """Estrutura de dados para mensagens entre agentes.
+    
+    Contém todas as informações necessárias para comunicação entre agentes.
+    """
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))  # ID único da mensagem
+    tipo: TipoMensagem = TipoMensagem.SOLICITACAO              # Tipo da mensagem
+    remetente: str = ""                                         # Agente que envia
+    destinatario: str = ""                                      # Agente que recebe
+    conteudo: Dict[str, Any] = field(default_factory=dict)     # Conteúdo da mensagem
+    contexto: Dict[str, Any] = field(default_factory=dict)     # Contexto adicional
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())  # Hora de criação
+    status: StatusMensagem = StatusMensagem.PENDENTE           # Status atual
+    prioridade: int = 5                                         # 1-10 (1 = mais alta)
+    resposta_para: Optional[str] = None                        # ID da mensagem original se for resposta
+    tentativas: int = 0                                         # Número de tentativas
+    max_tentativas: int = 3                                     # Máximo de tentativas
+    timeout_segundos: int = 30                                  # Tempo limite em segundos
     
     def to_dict(self) -> Dict[str, Any]:
-        """Converte mensagem para dicionário"""
+        """Converte mensagem para dicionário serializavel."""
         return {
             "id": self.id,
             "tipo": self.tipo.value,
@@ -87,21 +96,26 @@ class ComunicacaoAgentes:
         Args:
             max_historico: Número máximo de mensagens no histórico
         """
-        # Registro de agentes
+        # ===== REGISTRO DE AGENTES =====
         self.agentes_registrados: Dict[str, Any] = {}
         
-        # Filas de mensagens por destinatário e prioridade
+        # ===== FILAS DE MENSAGENS =====
+        # Estrutura: {nome_agente: {prioridade: fila}}
+        # 10 níveis de prioridade (1 = mais alta, 10 = mais baixa)
         self.filas_mensagens: Dict[str, Dict[int, deque]] = defaultdict(
             lambda: {i: deque() for i in range(1, 11)}
         )
         
-        # Callbacks por agente
+        # ===== CALLBACKS =====
+        # Funções a serem chamadas quando um agente recebe mensagem
         self.callbacks: Dict[str, List[Callable]] = defaultdict(list)
         
-        # Histórico de mensagens
+        # ===== HISTÓRICO =====
+        # Mantém histórico limitado de mensagens
         self.historico: deque = deque(maxlen=max_historico)
         
-        # Estatísticas
+        # ===== ESTATÍSTICAS =====
+        # Métricas do sistema de comunicação
         self.estatisticas = {
             "mensagens_enviadas": 0,
             "mensagens_processadas": 0,
@@ -111,13 +125,14 @@ class ComunicacaoAgentes:
             "mensagens_por_agente": defaultdict(int)
         }
         
+        # ===== CONTROLE DE CONCORRÊNCIA =====
         # Lock para operações thread-safe
         self.lock = asyncio.Lock()
         
-        # Flag para sistema ativo
+        # Flag para controlar se o sistema está ativo
         self.ativo = True
         
-        # Mensagens em processamento
+        # Rastreamento de mensagens em processamento
         self.mensagens_processando: Dict[str, MensagemAgente] = {}
     
     def registrar_agente(self, nome: str, agente: Any, callback: Optional[Callable] = None):
@@ -131,6 +146,7 @@ class ComunicacaoAgentes:
         """
         self.agentes_registrados[nome] = agente
         
+        # Registra callback se fornecido
         if callback:
             self.callbacks[nome].append(callback)
         
@@ -143,6 +159,7 @@ class ComunicacaoAgentes:
         Args:
             nome: Nome do agente
         """
+        # Remove todas as referências ao agente
         if nome in self.agentes_registrados:
             del self.agentes_registrados[nome]
             
@@ -165,25 +182,26 @@ class ComunicacaoAgentes:
             Dict: Resultado do envio
         """
         async with self.lock:
-            # Validar mensagem
+            # ===== VALIDAÇÃO DA MENSAGEM =====
             if not mensagem.destinatario:
                 return {"sucesso": False, "erro": "Destinatário não especificado"}
             
             if mensagem.destinatario not in self.agentes_registrados:
                 return {"sucesso": False, "erro": f"Agente '{mensagem.destinatario}' não registrado"}
             
-            # Adicionar à fila apropriada
+            # ===== ENFILEIRAMENTO =====
+            # Adiciona mensagem na fila de prioridade correspondente
             self.filas_mensagens[mensagem.destinatario][mensagem.prioridade].append(mensagem)
             
-            # Atualizar estatísticas
+            # ===== ATUALIZAÇÃO DE ESTATÍSTICAS =====
             self.estatisticas["mensagens_enviadas"] += 1
             self.estatisticas["mensagens_por_tipo"][mensagem.tipo.value] += 1
             self.estatisticas["mensagens_por_agente"][mensagem.remetente] += 1
             
-            # Adicionar ao histórico
+            # Adiciona ao histórico para rastreamento
             self.historico.append(mensagem)
             
-            # Processar mensagem
+            # ===== PROCESSAMENTO =====
             resultado = await self._processar_mensagem(mensagem)
             
             return resultado
@@ -203,21 +221,24 @@ class ComunicacaoAgentes:
         self.mensagens_processando[mensagem.id] = mensagem
         
         try:
-            # Obter agente destinatário
+            # ===== OBTENÇÃO DO AGENTE =====
             agente = self.agentes_registrados[mensagem.destinatario]
             
-            # Executar callbacks
+            # ===== EXECUÇÃO DE CALLBACKS =====
+            # Executa todos os callbacks registrados para o agente
             for callback in self.callbacks.get(mensagem.destinatario, []):
                 await self._executar_callback(callback, mensagem, agente)
             
-            # Se o agente tem método processar_mensagem, chamar diretamente
+            # ===== PROCESSAMENTO DIRETO =====
+            # Se o agente tem método processar_mensagem, chama diretamente
             if hasattr(agente, 'processar_mensagem'):
                 resposta = agente.processar_mensagem(
                     mensagem.conteudo.get("mensagem", ""),
                     mensagem.contexto
                 )
                 
-                # Criar mensagem de resposta
+                # ===== CRIAÇÃO DE RESPOSTA =====
+                # Se foi uma solicitação, cria mensagem de resposta
                 if mensagem.tipo == TipoMensagem.SOLICITACAO:
                     msg_resposta = MensagemAgente(
                         tipo=TipoMensagem.RESPOSTA,
@@ -228,13 +249,13 @@ class ComunicacaoAgentes:
                         resposta_para=mensagem.id
                     )
                     
-                    # Enviar resposta de volta
+                    # Envia resposta de volta ao remetente original
                     await self.enviar_mensagem(msg_resposta)
             
-            # Marcar como concluído
+            # Marca mensagem como concluída
             mensagem.status = StatusMensagem.CONCLUIDO
             
-            # Atualizar estatísticas
+            # ===== ATUALIZAÇÃO DE MÉTRICAS =====
             tempo_processamento = (datetime.now() - inicio).total_seconds()
             self.estatisticas["mensagens_processadas"] += 1
             self.estatisticas["tempo_total_processamento"] += tempo_processamento
@@ -246,7 +267,7 @@ class ComunicacaoAgentes:
             }
             
         except Exception as e:
-            # Marcar como erro
+            # ===== TRATAMENTO DE ERRO =====
             mensagem.status = StatusMensagem.ERRO
             self.estatisticas["mensagens_erro"] += 1
             
@@ -257,7 +278,8 @@ class ComunicacaoAgentes:
             }
             
         finally:
-            # Remover de processando
+            # ===== LIMPEZA =====
+            # Remove mensagem da lista de processamento
             if mensagem.id in self.mensagens_processando:
                 del self.mensagens_processando[mensagem.id]
     
@@ -271,6 +293,7 @@ class ComunicacaoAgentes:
             agente: Agente destinatário
         """
         try:
+            # Verifica se callback é assíncrono ou síncrono
             if asyncio.iscoroutinefunction(callback):
                 await callback(mensagem, agente)
             else:
@@ -292,9 +315,11 @@ class ComunicacaoAgentes:
         Returns:
             Dict: Resultado do broadcast
         """
+        # ===== PREPARAÇÃO DO BROADCAST =====
         excluir = excluir or []
         excluir.append(remetente)  # Não enviar para si mesmo
         
+        # Filtra destinatários
         destinatarios = [nome for nome in self.agentes_registrados 
                         if nome not in excluir]
         
@@ -305,7 +330,7 @@ class ComunicacaoAgentes:
             "detalhes": {}
         }
         
-        # Enviar para cada destinatário
+        # ===== ENVIO PARA MÚLTIPLOS DESTINATÁRIOS =====
         for destinatario in destinatarios:
             mensagem = MensagemAgente(
                 tipo=tipo,
@@ -339,7 +364,8 @@ class ComunicacaoAgentes:
         if agente not in self.filas_mensagens:
             return None
         
-        # Verificar filas por prioridade (1 = mais alta)
+        # ===== BUSCA POR PRIORIDADE =====
+        # Verifica filas da maior para menor prioridade
         for prioridade in range(1, 11):
             fila = self.filas_mensagens[agente][prioridade]
             if fila:
@@ -360,6 +386,7 @@ class ComunicacaoAgentes:
         if not filtros:
             return list(self.historico)
         
+        # ===== FILTRAGEM DO HISTÓRICO =====
         mensagens_filtradas = []
         
         for msg in self.historico:
@@ -389,12 +416,13 @@ class ComunicacaoAgentes:
         Returns:
             Dict: Estatísticas detalhadas
         """
+        # ===== CÁLCULO DE MÉTRICAS =====
         tempo_medio = 0.0
         if self.estatisticas["mensagens_processadas"] > 0:
             tempo_medio = (self.estatisticas["tempo_total_processamento"] / 
                           self.estatisticas["mensagens_processadas"])
         
-        # Contar mensagens em filas
+        # Conta total de mensagens aguardando nas filas
         mensagens_em_fila = 0
         for agente_filas in self.filas_mensagens.values():
             for fila in agente_filas.values():
@@ -420,11 +448,14 @@ class ComunicacaoAgentes:
         Args:
             agente: Nome do agente (None para limpar todas)
         """
+        # ===== LIMPEZA DE FILAS =====
         if agente:
+            # Limpa filas de um agente específico
             if agente in self.filas_mensagens:
                 for fila in self.filas_mensagens[agente].values():
                     fila.clear()
         else:
+            # Limpa todas as filas
             for agente_filas in self.filas_mensagens.values():
                 for fila in agente_filas.values():
                     fila.clear()
@@ -462,13 +493,14 @@ class ComunicacaoAgentes:
             nome_agente: Nome do agente
             max_mensagens: Número máximo de mensagens para processar
         """
+        # ===== PROCESSAMENTO EM LOTE =====
         processadas = 0
         
         while processadas < max_mensagens:
             mensagem = self.obter_proxima_mensagem(nome_agente)
             
             if not mensagem:
-                break
+                break  # Não há mais mensagens
             
             await self._processar_mensagem(mensagem)
             processadas += 1
@@ -486,8 +518,10 @@ class ComunicacaoAgentes:
         Returns:
             Callable: Função para enviar mensagens diretamente
         """
+        # ===== FUNÇÃO DE CANAL DIRETO =====
         async def enviar_direto(remetente: str, conteudo: Dict[str, Any], 
                                prioridade: int = 5) -> Dict[str, Any]:
+            # Determina destinatário baseado no remetente
             destinatario = agente2 if remetente == agente1 else agente1
             
             mensagem = MensagemAgente(
@@ -507,9 +541,10 @@ class ComunicacaoAgentes:
                 f"mensagens_enviadas={self.estatisticas['mensagens_enviadas']})")
 
 
-# Funções auxiliares para uso síncrono
+# ===== FUNÇÕES AUXILIARES =====
+# Funções de conveniência para uso síncrono
 def criar_sistema_comunicacao() -> ComunicacaoAgentes:
-    """Cria uma instância do sistema de comunicação"""
+    """Cria uma instância do sistema de comunicação."""
     return ComunicacaoAgentes()
 
 
@@ -524,6 +559,7 @@ def enviar_mensagem_sincrona(sistema: ComunicacaoAgentes, mensagem: MensagemAgen
     Returns:
         Dict: Resultado do envio
     """
+    # Cria loop de eventos para execução síncrona
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
