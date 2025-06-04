@@ -131,7 +131,7 @@ class AURALISBackend:
         self.current_user = None
         self.current_meeting_context = None
         self.response_cache.clear()
-        self.sistema_agentes.limpar_contexto()
+        self.sistema_agentes.atualizar_contexto_global({})
     
     # ==================== Meeting Management ====================
     

@@ -9,6 +9,7 @@ This is the AURALIS system - a sophisticated multi-agent AI architecture for pro
 - A multi-agent system architecture (described in README_SISTEMA_AGENTES_DETALHADO.md)
 - Voice recording and transcription capabilities
 - AI-powered analysis and brainstorming
+- contexto de ajustes, melhorias e interações anteriores (compact.py)
 
 ## Development Commands
 

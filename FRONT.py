@@ -4,20 +4,35 @@ Resolução fixa: 320x240 pixels
 Interface otimizada para Linux com entrada de texto funcionando
 """
 
+import sys
+import os
+
+# IMPORTANTE: Carregar .env ANTES de importar outros módulos
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import load_env  # Isso carrega as variáveis de ambiente
+
+# Agora importar as outras bibliotecas
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
 from datetime import datetime, timedelta
 import threading
 import time
-import os
 import math
 import random
 import numpy as np
+
+# Importar o backend integrado (agora com as variáveis de ambiente carregadas)
+from main import AURALISBackend, process_message_async
 
 class SistemaTFT:
     def __init__(self):
         # Configurar tema escuro
         ctk.set_appearance_mode("dark")
+        
+        # Inicializar backend AURALIS
+        print("🚀 Inicializando backend AURALIS...")
+        # Detectar automaticamente se deve usar mock baseado na presença da API key
+        self.backend = AURALISBackend(mock_mode=None)  # None = auto-detecta baseado em OPENAI_API_KEY
         
         # Paleta de cores personalizada
         self.cores = {
@@ -160,8 +175,14 @@ class SistemaTFT:
         if not usuario:
             return
         
-        self.usuario_logado = {"usuario": usuario, "area": "geral"}
-        self.transicao_rapida(self.mostrar_menu_principal)
+        # Autenticar via backend
+        user = self.backend.authenticate(usuario, senha)
+        if user:
+            self.usuario_logado = user
+            self.transicao_rapida(self.mostrar_menu_principal)
+        else:
+            messagebox.showerror("Erro", "Usuário ou senha inválidos", parent=self.janela)
+            self.entry_senha.delete(0, "end")
     
     # ==================== MENU PRINCIPAL ====================
     def mostrar_menu_principal(self):
@@ -196,7 +217,7 @@ class SistemaTFT:
         # Usuário
         ctk.CTkLabel(
             frame_header,
-            text=self.usuario_logado['usuario'],
+            text=self.usuario_logado.get('username', self.usuario_logado.get('usuario', 'Usuário')),
             font=ctk.CTkFont(size=10),
             text_color=self.cores["texto_secundario"]
         ).pack(side="right", padx=5)
@@ -713,6 +734,61 @@ PRÓXIMOS PASSOS:
         self.entry_chat.bind("<Return>", lambda e: self.enviar_mensagem())
         self.entry_chat.focus_set()
     
+    def _mostrar_processando(self):
+        """Mostra indicador de processamento no chat"""
+        self.text_chat.configure(state="normal")
+        self.text_chat.insert("end", "🤖 Processando...\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+    
+    def _resposta_ia_callback(self, resposta: str):
+        """Callback para resposta da IA"""
+        # Executar na thread principal da GUI
+        self.janela.after(0, lambda: self._atualizar_chat_com_resposta(resposta))
+    
+    def _erro_ia_callback(self, erro: str):
+        """Callback para erro no processamento"""
+        self.janela.after(0, lambda: self._atualizar_chat_com_erro(erro))
+    
+    def _atualizar_chat_com_resposta(self, resposta: str):
+        """Atualiza o chat com a resposta da IA"""
+        self.text_chat.configure(state="normal")
+        
+        # Remover "Processando..."
+        content = self.text_chat.get("1.0", "end-1c")
+        lines = content.split('\n')
+        if lines and "Processando..." in lines[-1]:
+            # Remover última linha
+            self.text_chat.delete("end-2l", "end")
+        
+        # Adicionar resposta
+        self.text_chat.insert("end", f"🤖 {resposta}\n\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+        
+        # Reabilitar entrada
+        self.entry_chat.configure(state="normal")
+        self.entry_chat.focus_set()
+    
+    def _atualizar_chat_com_erro(self, erro: str):
+        """Atualiza o chat com mensagem de erro"""
+        self.text_chat.configure(state="normal")
+        
+        # Remover "Processando..."
+        content = self.text_chat.get("1.0", "end-1c")
+        lines = content.split('\n')
+        if lines and "Processando..." in lines[-1]:
+            self.text_chat.delete("end-2l", "end")
+        
+        # Adicionar erro
+        self.text_chat.insert("end", f"❌ Erro: {erro}\n\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+        
+        # Reabilitar entrada
+        self.entry_chat.configure(state="normal")
+        self.entry_chat.focus_set()
+    
     def enviar_mensagem(self):
         msg = self.entry_chat.get().strip()
         if not msg:
@@ -720,11 +796,24 @@ PRÓXIMOS PASSOS:
         
         self.text_chat.configure(state="normal")
         self.text_chat.insert("end", f"👤 {msg}\n")
-        self.text_chat.insert("end", "🤖 Processando...\n\n")
         self.text_chat.configure(state="disabled")
         self.text_chat.see("end")
         
         self.entry_chat.delete(0, "end")
+        
+        # Desabilitar entrada durante processamento
+        self.entry_chat.configure(state="disabled")
+        
+        # Mostrar indicador de processamento
+        self._mostrar_processando()
+        
+        # Processar mensagem via backend de forma assíncrona
+        process_message_async(
+            self.backend,
+            msg,
+            self._resposta_ia_callback,
+            self._erro_ia_callback
+        )
     
     # ==================== INTERFACE DE ÁUDIO COM CLIQUE ====================
     def abrir_interface_audio(self):
@@ -968,6 +1057,8 @@ PRÓXIMOS PASSOS:
         ).pack(side="left", padx=10, pady=8)
     
     def fazer_logout(self):
+        if self.backend and self.usuario_logado:
+            self.backend.logout()
         self.usuario_logado = None
         self.transicao_rapida(self.mostrar_login)
 
