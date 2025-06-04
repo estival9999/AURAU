@@ -381,7 +381,7 @@ class SistemaTFT:
 Data: {data} - Duração: {duracao}
 
 PARTICIPANTES:
-• {self.usuario_logado['usuario']} (Organizador)
+• {self.usuario_logado.get('username', self.usuario_logado.get('usuario', 'Usuário'))} (Organizador)
 • João Silva (Desenvolvimento)
 • Maria Santos (Design)
 • Pedro Costa (Gestão)
