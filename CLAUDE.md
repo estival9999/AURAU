@@ -116,3 +116,8 @@ All detailed documentation has been organized in the `/docs` folder:
 - `GERAL - README_SISTEMA_AGENTES_DETALHADO.md` - Detailed agent system documentation
 - `README_INTEGRACAO_AGENTE_FRONT.md` - Frontend-Agent integration guide
 - `compact.md` - Development history and context
+
+## Important Instructions
+
+- As instruções em `docs/compact.md` referem-se ao histórico de mensagens/alterações/modificações/incrementações/ajustes que foram tratados anteriormente, são relevantes para considerar no contexto para manter a consistência nas execuções posteriores
+- Sempre gerar respostas no terminal e instruções dentro de códigos .py em português Brasil
