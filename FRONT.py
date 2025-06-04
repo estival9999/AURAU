@@ -6,10 +6,31 @@ Interface otimizada para Linux com entrada de texto funcionando
 
 import sys
 import os
+from pathlib import Path
 
 # IMPORTANTE: Carregar .env ANTES de importar outros módulos
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import load_env  # Isso carrega as variáveis de ambiente
+def load_env():
+    """Carrega variáveis de ambiente do arquivo .env"""
+    env_file = Path(__file__).parent / '.env'
+    
+    if env_file.exists():
+        print("📋 Carregando configurações de .env...")
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key] = value.strip()
+                        if key == 'OPENAI_API_KEY':
+                            print(f"   ✅ {key} configurada ({value[:20]}...)")
+                        elif key in ['SUPABASE_URL', 'DEBUG_MODE']:
+                            print(f"   ✅ {key} configurada")
+    else:
+        print("⚠️  Arquivo .env não encontrado")
+
+# Carregar variáveis de ambiente
+load_env()
 
 # Agora importar as outras bibliotecas
 import customtkinter as ctk
