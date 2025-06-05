@@ -251,7 +251,14 @@ flowchart TD
     A39_2 --> A39_3[Regra inviolável estabelecida]
     A39 --> README39[README_05_06_1323_043.md]
     
-    A39_3 --> Current[Estado Atual: Sistema com regra de commit obrigatório implementada]
+    A39_3 --> A40[🔍 Análise e Correção Chunks Embeddings]
+    A40 --> A40_1[50 chunks com 42 repetições identificados]
+    A40_1 --> A40_2[Bug no algoritmo de chunking diagnosticado]
+    A40_2 --> A40_3[Scripts análise e correção criados]
+    A40_3 --> A40_4[14 chunks corretos após reprocessamento]
+    A40 --> README40[README_05_06_1328_044.md]
+    
+    A40_4 --> Current[Estado Atual: Chunks corrigidos aguardando embeddings]
 
     style Start fill:#90EE90
     style Current fill:#FFD700
@@ -294,6 +301,7 @@ flowchart TD
     style README37 fill:#E6E6FA
     style README38 fill:#E6E6FA
     style README39 fill:#E6E6FA
+    style README40 fill:#E6E6FA
 ```
 
 ## 📁 Estrutura de Arquivos Afetados
@@ -364,18 +372,19 @@ Para análise completa de cada alteração, consulte:
 | Verificação Estrutura Supabase | [README_05_06_1310_041.md](READMES_COMP/README_05_06_1310_041.md) | Descoberta tabelas em inglês e embeddings vazios |
 | Análise Sistema Embeddings | [README_05_06_0648_042.md](READMES_COMP/README_05_06_0648_042.md) | Correção sistema e criação 131 embeddings |
 | Instrução Commit Obrigatório | [README_05_06_1323_043.md](READMES_COMP/README_05_06_1323_043.md) | Adição regra commit obrigatório ao CLAUDE.md |
+| Análise e Correção Chunks | [README_05_06_1328_044.md](READMES_COMP/README_05_06_1328_044.md) | Diagnóstico e correção de chunks repetidos |
 
 ## 📈 Estatísticas do Projeto
 
-- **Total de alterações**: 39 principais
-- **Arquivos criados**: 18 (incluindo utils_caminhos.py + teste_caminhos_seguros.py + verificar_supabase_estrutura.py + verificar_todas_tabelas_supabase.py)
+- **Total de alterações**: 40 principais
+- **Arquivos criados**: 21 (incluindo utils_caminhos.py + teste_caminhos_seguros.py + verificar_supabase_estrutura.py + verificar_todas_tabelas_supabase.py + 3 scripts análise chunks)
 - **Arquivos excluídos**: 4 (config_ia.py, 2 SQLs antigos, agente_base_simulado.py)
 - **Arquivos modificados**: 17 (CLAUDE.md 10x, FLUXOGRAMA.md 15x, importar_base_conhecimento.py 1x, embeddings_handler.py 1x)
 - **Arquivos renomeados**: 28 (16 inicial + 11 correção + 1 ID duplicado)
 - **Linhas de código SQL**: 372 (versão final definitiva)
-- **Scripts Python criados**: 12 (6 inicial + 2 para caminhos + embeddings_handler + importar_conhecimento + 2 verificação Supabase)
-- **READMEs documentados**: 43 (39 no fluxo + 4 extras)
-- **Embeddings criados**: 131 total (81 reuniões + 50 knowledge base)
+- **Scripts Python criados**: 15 (6 inicial + 2 para caminhos + embeddings_handler + importar_conhecimento + 2 verificação Supabase + 3 análise chunks)
+- **READMEs documentados**: 44 (40 no fluxo + 4 extras)
+- **Embeddings criados**: 95 total (81 reuniões + 14 knowledge base corrigidos)
 - **Sistema de documentação**: 2 camadas + contexto obrigatório + IDs cronológicos
 - **Qualidade documentação**: Ultra-detalhada implementada + Regras críticas impossíveis de ignorar
 - **Dados inseridos no banco**: 21 registros (9 usuários, 4 reuniões, 8 interações IA)
@@ -420,4 +429,4 @@ echo "Próximo ID disponível: $next_id"
 - ✅ **Conformidade**: Total com instruções do usuário
 
 ---
-*Última atualização: 05/06/2025 13:23*
+*Última atualização: 05/06/2025 13:31*
