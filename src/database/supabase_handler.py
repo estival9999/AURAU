@@ -66,7 +66,7 @@ class SupabaseHandler:
     
     def autenticar_usuario(self, username: str, password: str) -> Optional[Dict[str, Any]]:
         """
-        Autentica usuário (simulado - em produção usar Supabase Auth).
+        Autentica usuário verificando hash bcrypt da senha.
         
         Args:
             username: Nome de usuário
@@ -76,20 +76,40 @@ class SupabaseHandler:
             Dict com dados do usuário ou None se falhar
         """
         try:
-            # Em produção, usar Supabase Auth
-            # Por ora, busca usuário por username (mock auth)
+            # Importar bcrypt aqui para evitar dependência circular
+            import bcrypt
+            
+            # Buscar usuário por username
             response = self.client.table('users').select("*").eq('username', username).execute()
             
             if response.data and len(response.data) > 0:
                 user = response.data[0]
-                # Em produção, verificar hash da senha
-                if password == "senha123":  # Mock para teste
-                    # Atualizar último login
-                    self.client.table('users').update({
-                        'last_login': datetime.now(timezone.utc).isoformat()
-                    }).eq('id', user['id']).execute()
-                    
-                    return user
+                
+                # Verificar se usuário está ativo
+                if not user.get('is_active', True):
+                    logger.warning(f"Tentativa de login com usuário inativo: {username}")
+                    return None
+                
+                # Verificar hash da senha com bcrypt
+                password_hash = user.get('password_hash', '')
+                
+                try:
+                    # Verificar senha usando bcrypt
+                    if bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8')):
+                        # Atualizar último login
+                        self.client.table('users').update({
+                            'last_login': datetime.now(timezone.utc).isoformat()
+                        }).eq('id', user['id']).execute()
+                        
+                        logger.info(f"Login bem-sucedido para usuário: {username}")
+                        return user
+                    else:
+                        logger.warning(f"Senha incorreta para usuário: {username}")
+                except Exception as e:
+                    logger.error(f"Erro ao verificar senha para {username}: {e}")
+                    return None
+            else:
+                logger.warning(f"Usuário não encontrado: {username}")
             
             return None
             
