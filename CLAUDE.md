@@ -52,7 +52,6 @@ The system implements a sophisticated agent architecture with:
 
 Key design patterns:
 - Abstract base class (AgenteBase) for all agents
-- Mock implementations for testing without OpenAI API
 - Event-driven communication between agents
 - LRU cache with TTL for performance optimization
 
@@ -121,6 +120,29 @@ All detailed documentation has been organized in the `/docs` folder:
 
 - As instruções em `docs/compact.md` referem-se ao histórico de mensagens/alterações/modificações/incrementações/ajustes que foram tratados anteriormente, são relevantes para considerar no contexto para manter a consistência nas execuções posteriores
 - Sempre gerar respostas no terminal e instruções dentro de códigos .py em português Brasil
+
+## 🚨 INSTRUÇÃO CRÍTICA - PROIBIDO USO DE MOCKS OU DADOS LOCAIS
+
+### REGRA ABSOLUTA E INVIOLÁVEL:
+O sistema AURALIS deve utilizar **EXCLUSIVAMENTE** Supabase na nuvem para TODAS as operações. 
+
+**PROIBIDO**:
+- ❌ Criar modos mock ou simulados
+- ❌ Implementar fallbacks locais
+- ❌ Armazenar dados em memória/localmente
+- ❌ Criar classes simuladas (como agente_base_simulado.py)
+- ❌ Implementar autenticação local (admin/admin123 etc)
+- ❌ Qualquer funcionalidade que rode sem Supabase
+
+**OBRIGATÓRIO**:
+- ✅ TODAS as operações devem usar Supabase na nuvem
+- ✅ Se Supabase falhar, o sistema deve PARAR e informar o erro
+- ✅ Autenticação APENAS via Supabase
+- ✅ Dados APENAS no banco Supabase
+- ✅ Sem exceções ou alternativas locais
+
+### ⚠️ ATENÇÃO CRÍTICA:
+Esta é uma diretriz de MÁXIMA PRIORIDADE. Ignorar esta regra invalida completamente a implementação. O sistema deve ser 100% dependente do Supabase - sem isso, não deve funcionar.
 
 ## 🧠 INSTRUÇÃO CRÍTICA - ANÁLISE OBRIGATÓRIA DE CONTEXTO HISTÓRICO
 

@@ -28,41 +28,28 @@ class AURALISBackend:
     Gerencia autenticação, processamento de mensagens e operações de banco de dados.
     """
     
-    def __init__(self, mock_mode: bool = None):
+    def __init__(self):
         """
         Inicializa o backend AURALIS.
-        
-        Args:
-            mock_mode: Força modo simulado (None = auto-detecta baseado no ambiente)
+        APENAS Supabase na nuvem - sem mocks ou fallbacks locais.
         """
         self.logger = logging.getLogger(__name__)
-        
-        # Determinar modo de operação
-        if mock_mode is None:
-            mock_mode = not os.getenv("OPENAI_API_KEY") or os.getenv("DEBUG_MODE") == "True"
-        
-        self.mock_mode = mock_mode
-        self.logger.info(f"Inicializando Backend AURALIS (modo_simulado={mock_mode})")
+        self.logger.info("Inicializando Backend AURALIS (APENAS Supabase)")
         
         # Inicializar componentes
         self.sistema_agentes = SistemaAgentes(modo_debug=True)
         
-        # Tentar inicializar Supabase, mas forçar mock se houver erro
+        # Inicializar handler do Supabase - OBRIGATÓRIO
         try:
-            self.db_handler = SupabaseHandler(mock_mode=mock_mode)
-            # Testar conexão com uma operação simples
-            if not mock_mode:
-                # Fazer uma query de teste
-                test_user = self.db_handler.authenticate_user("_test_", "_test_")
-                if test_user is None:
-                    # Se falhar, não necessariamente é um erro
-                    pass
+            from src.database.supabase_handler import SupabaseHandler
+            self.db_handler = SupabaseHandler()
+            # Testar conexão
+            if not self.db_handler.testar_conexao():
+                raise Exception("Falha na conexão com Supabase")
+            self.logger.info("Conexão com Supabase estabelecida")
         except Exception as e:
-            self.logger.warning(f"Erro ao conectar com Supabase: {e}")
-            self.logger.info("Mudando para modo mock automaticamente")
-            # Recriar em modo mock
-            self.db_handler = SupabaseHandler(mock_mode=True)
-            self.mock_mode = True
+            self.logger.error(f"ERRO CRÍTICO: Não foi possível conectar ao Supabase: {e}")
+            raise RuntimeError(f"Sistema requer Supabase. Configure as credenciais no .env: {e}")
         
         # Estado da sessão atual
         self.current_user = None
@@ -95,7 +82,11 @@ class AURALISBackend:
             Dicionário com perfil do usuário ou None se a autenticação falhar
         """
         try:
-            user = self.db_handler.authenticate_user(username, password)
+            # Usar APENAS autenticação Supabase
+            if not self.db_handler:
+                raise RuntimeError("Sistema requer conexão com Supabase")
+            
+            user = self.db_handler.autenticar_usuario(username, password)
             
             if user:
                 self.current_user = user
@@ -109,14 +100,13 @@ class AURALISBackend:
                 })
                 
                 # Registrar início da sessão
-                self.db_handler.log_agent_interaction({
-                    'user_id': user['id'],
-                    'agent_id': self._get_orchestrator_agent_id(),
-                    'interaction_type': 'session_start',
-                    'input_text': f"Login: {username}",
-                    'output_text': "Sessão iniciada",
-                    'context': {"timestamp": datetime.now().isoformat()}
-                })
+                self.db_handler.salvar_interacao_ia(
+                        user_id=user['id'],
+                        mensagem=f"Login: {username}",
+                        resposta="Sessão iniciada",
+                        contexto={"timestamp": datetime.now().isoformat()},
+                        model_used="sistema"
+                    )
             
             return user
             
@@ -129,17 +119,17 @@ class AURALISBackend:
         """Faz logout do usuário atual e limpa a sessão"""
         if self.current_user:
             # Registrar fim da sessão
-            self.db_handler.log_agent_interaction({
-                'user_id': self.current_user['id'],
-                'agent_id': self._get_orchestrator_agent_id(),
-                'interaction_type': 'session_end',
-                'input_text': "Logout",
-                'output_text': "Sessão encerrada",
-                'context': {
-                    "session_duration": str(datetime.now() - self.session_start),
-                    "messages_processed": self.stats["messages_processed"]
-                }
-            })
+            if self.db_handler:
+                self.db_handler.salvar_interacao_ia(
+                    user_id=self.current_user['id'],
+                    mensagem="Logout",
+                    resposta="Sessão encerrada",
+                    contexto={
+                        "session_duration": str(datetime.now() - self.session_start),
+                        "messages_processed": self.stats["messages_processed"]
+                    },
+                    model_used="sistema"
+                )
             
             self.logger.info(f"Usuário {self.current_user['username']} fez logout")
         
@@ -165,7 +155,11 @@ class AURALISBackend:
             return []
         
         try:
-            meetings = self.db_handler.get_user_meetings(
+            # Usar APENAS dados do Supabase
+            if not self.db_handler:
+                raise RuntimeError("Sistema requer conexão com Supabase")
+            
+            meetings = self.db_handler.buscar_reunioes_usuario(
                 self.current_user['id'], 
                 limit
             )
@@ -193,12 +187,15 @@ class AURALISBackend:
     def get_meeting_details(self, meeting_id: str) -> Optional[Dict]:
         """Obtém informações detalhadas da reunião incluindo transcrição"""
         try:
-            meeting = self.db_handler.get_meeting_by_id(meeting_id)
+            if not self.db_handler:
+                raise RuntimeError("Sistema requer conexão com Supabase")
+            
+            # Buscar no banco
+            meetings = self.db_handler.buscar_reunioes_usuario(self.current_user['id'])
+            meeting = next((m for m in meetings if m['id'] == meeting_id), None)
             if not meeting:
                 return None
-            
-            # Obter transcrição
-            transcription = self.db_handler.get_meeting_transcription(meeting_id)
+            transcription = meeting.get('transcription_full')
             
             # Formatar para o frontend
             return {
@@ -219,10 +216,18 @@ class AURALISBackend:
         try:
             # Adicionar organizador e timestamps
             meeting_data['organizer_id'] = self.current_user['id']
-            meeting_data['created_at'] = datetime.now().isoformat()
+            meeting_data['start_time'] = datetime.now().isoformat()
             meeting_data['status'] = 'scheduled'
             
-            meeting_id = self.db_handler.save_meeting(meeting_data)
+            # Usar APENAS Supabase
+            if not self.db_handler:
+                raise RuntimeError("Sistema requer conexão com Supabase")
+            
+            meeting_id = self.db_handler.criar_reuniao(
+                user_id=self.current_user['id'],
+                titulo=meeting_data.get('title', 'Reunião'),
+                observacoes=meeting_data.get('observations', '')
+            )
             
             if meeting_id:
                 self.logger.info(f"Reunião salva com ID: {meeting_id}")
@@ -435,10 +440,13 @@ class AURALISBackend:
     
     def get_user_analytics(self) -> Dict[str, Any]:
         """Obtém análise de dados do usuário do banco de dados"""
-        if not self.current_user:
-            return {}
+        if not self.current_user or self.mock_mode or not self.db_handler:
+            return {
+                'total_meetings': 0,
+                'total_ai_interactions': 0
+            }
         
-        return self.db_handler.get_user_statistics(self.current_user['id'])
+        return self.db_handler.obter_estatisticas_usuario(self.current_user['id'])
     
     # ==================== Métodos Auxiliares ====================
     
@@ -457,11 +465,13 @@ class AURALISBackend:
         if meeting_context:
             context["reuniao_contexto"] = meeting_context
             
-            # Tentar carregar dados da reunião
-            meetings = self.db_handler.search_meetings_by_title(
-                meeting_context, 
-                self.current_user['id']
-            )
+            # Buscar dados da reunião APENAS no Supabase
+            if not self.db_handler:
+                raise RuntimeError("Sistema requer conexão com Supabase")
+            
+            # Buscar por título
+            all_meetings = self.db_handler.buscar_reunioes_usuario(self.current_user['id'])
+            meetings = [m for m in all_meetings if meeting_context.lower() in m.get('title', '').lower()]
             
             if meetings:
                 meeting = meetings[0]
@@ -473,39 +483,34 @@ class AURALISBackend:
                 }
                 
                 # Adicionar transcrição se disponível
-                transcription = self.db_handler.get_meeting_transcription(meeting['id'])
-                if transcription:
-                    context["transcricao"] = transcription['full_text']
+                if 'transcription_full' in meeting:
+                    context["transcricao"] = meeting['transcription_full']
         
         return context
     
     def _log_interaction(self, input_text: str, output_text: str, context: Dict):
         """Registra interação no banco de dados"""
-        if not self.current_user:
-            return
+        if not self.current_user or not self.db_handler:
+            raise RuntimeError("Sistema requer conexão com Supabase e usuário autenticado")
         
         try:
-            interaction_data = {
-                'user_id': self.current_user['id'],
-                'agent_id': self._get_orchestrator_agent_id(),
-                'interaction_type': 'chat',
-                'input_text': input_text[:1000],  # Limitar tamanho do texto
-                'output_text': output_text[:5000],  # Limitar tamanho do texto
-                'context': json.dumps(context, ensure_ascii=False),
-                'tokens_used': self._estimate_tokens(input_text + output_text)
-            }
-            
-            self.db_handler.log_agent_interaction(interaction_data)
+            # Usar método correto do SupabaseHandler
+            self.db_handler.salvar_interacao_ia(
+                user_id=self.current_user['id'],
+                mensagem=input_text[:1000],
+                resposta=output_text[:5000],
+                contexto=context,
+                response_time_ms=100,  # Estimativa
+                tokens_used=self._estimate_tokens(input_text + output_text),
+                model_used="gpt-3.5-turbo"
+            )
             
         except Exception as e:
             self.logger.error(f"Erro ao registrar interação: {e}")
     
     def _get_orchestrator_agent_id(self) -> str:
-        """Obtém ID do agente orquestrador (com cache)"""
-        if not hasattr(self, '_orchestrator_id'):
-            agent = self.db_handler.get_agent_by_name('Orquestrador AURALIS')
-            self._orchestrator_id = agent['id'] if agent else 'default-orchestrator'
-        return self._orchestrator_id
+        """Obtém ID do agente orquestrador"""
+        return 'orchestrator-001'  # ID fixo para simplificar
     
     def _get_error_response(self, error: str) -> str:
         """Obtém resposta de erro amigável ao usuário"""
@@ -600,9 +605,9 @@ class AURALISBackend:
 
 # ==================== Funções de Wrapper Assíncrono ====================
 
-def create_backend(mock_mode: bool = None) -> AURALISBackend:
-    """Cria e inicializa o backend AURALIS"""
-    return AURALISBackend(mock_mode=mock_mode)
+def create_backend() -> AURALISBackend:
+    """Cria e inicializa o backend AURALIS - APENAS com Supabase"""
+    return AURALISBackend()
 
 
 def process_message_async(backend: AURALISBackend, message: str, 
@@ -637,8 +642,8 @@ if __name__ == "__main__":
     # Testar funcionalidade do backend
     print("Testando Backend AURALIS...")
     
-    # Criar backend em modo simulado
-    backend = create_backend(mock_mode=True)
+    # Criar backend - REQUER Supabase configurado
+    backend = create_backend()
     
     # Testar autenticação
     print("\n1. Testando autenticação...")

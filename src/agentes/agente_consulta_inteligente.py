@@ -18,6 +18,14 @@ else:
 # Importar o novo sistema de templates
 from .prompt_template import PromptTemplate, TomResposta
 
+# Importar handler do Supabase
+try:
+    from ..database.supabase_handler import SupabaseHandler
+    HAS_SUPABASE = True
+except ImportError:
+    HAS_SUPABASE = False
+    print("[AVISO] Supabase não disponível, usando dados mock")
+
 
 class AgenteConsultaInteligente(AgenteBase):
     """
@@ -31,7 +39,7 @@ class AgenteConsultaInteligente(AgenteBase):
     - Calcular relevância e ranquear resultados
     """
     
-    def __init__(self):
+    def __init__(self, supabase_client=None):
         super().__init__(
             nome="Consultor Inteligente AURALIS",
             descricao="Especialista em busca semântica e recuperação de informações relevantes"
@@ -46,6 +54,18 @@ class AgenteConsultaInteligente(AgenteBase):
         self.temperatura = self.config_prompt.temperatura
         self.max_resultados = 10  # Limite de resultados por busca
         
+        # ===== CONFIGURAÇÃO DO SUPABASE (OBRIGATÓRIO) =====
+        # APENAS Supabase - sem fallbacks
+        if supabase_client:
+            self.db = supabase_client
+        else:
+            try:
+                self.db = SupabaseHandler()
+                if not self.db.testar_conexao():
+                    raise RuntimeError("Falha na conexão com Supabase")
+            except Exception as e:
+                raise RuntimeError(f"Sistema requer Supabase configurado: {e}")
+        
         # ===== DICIONÁRIO DE SINÔNIMOS =====
         # Usado para expandir termos de busca e melhorar resultados
         self.sinonimos = {
@@ -59,9 +79,12 @@ class AgenteConsultaInteligente(AgenteBase):
             "solução": ["solution", "resolução", "resposta", "saída"]
         }
         
-        # ===== MOCK DE BASE DE DADOS =====
-        # Simulação de reuniões para testes (em produção usará Supabase/ChromaDB)
-        self.mock_reunioes = [
+        # ===== MODO DE OPERAÇÃO =====
+        # SEMPRE usa banco real - sem mocks
+        self.usar_banco_real = True  # Forçado para True
+        
+        # REMOVIDO: Mock de base de dados - APENAS Supabase
+        self.mock_reunioes = []  # Vazio - não será usado
             {
                 "id": "001",
                 "titulo": "Kickoff do Projeto AURALIS",
@@ -304,39 +327,56 @@ class AgenteConsultaInteligente(AgenteBase):
         Returns:
             List[Dict]: Reuniões encontradas com relevância
         """
-        resultados = []
+        # ===== BUSCA APENAS NO BANCO REAL - SEM FALLBACKS =====
+        if not self.db:
+            raise RuntimeError("Sistema requer conexão com Supabase")
         
-        for reuniao in self.mock_reunioes:
-            # ===== CRIAÇÃO DE TEXTO COMPLETO PARA BUSCA =====
-            # Concatena todos os campos relevantes da reunião
-            texto_busca = f"{reuniao['titulo']} {' '.join(reuniao['participantes'])} "
-            texto_busca += f"{' '.join(reuniao['pauta'])} {' '.join(reuniao['decisoes'])} "
-            texto_busca += f"{reuniao['transcricao']} {' '.join(reuniao['tags'])}"
+        try:
+            # Obtém ID do usuário do contexto
+            user_id = self.contexto_atual.get('user_id') if self.contexto_atual else None
             
-            # Calcula score de relevância para esta reunião
-            relevancia = self.calcular_relevancia(
-                texto_busca,
-                termos,
-                reuniao['titulo'],
-                ' '.join(reuniao['participantes'])
+            # Busca usando o handler do Supabase
+            reunioes = self.db.buscar_reunioes_por_texto(
+                termos_busca=termos,
+                user_id=user_id,
+                limit=self.max_resultados
             )
             
-            if relevancia > 0:
+            # Formata resultados do banco
+            resultados = []
+            for reuniao in reunioes:
+                # Adapta formato do banco para formato esperado
+                dados_adaptados = {
+                    "id": reuniao.get('id'),
+                    "titulo": reuniao.get('title', ''),
+                    "data": reuniao.get('start_time', '')[:10] if reuniao.get('start_time') else '',
+                    "hora": reuniao.get('start_time', '')[11:16] if reuniao.get('start_time') else '',
+                    "duracao": f"{reuniao.get('duration_seconds', 0) // 60} min",
+                    "participantes": reuniao.get('participants', []),
+                    "pauta": reuniao.get('key_points', []),
+                    "decisoes": reuniao.get('decisions', []),
+                    "transcricao": reuniao.get('transcription_full', ''),
+                    "tags": []  # TODO: Extrair tags do conteúdo
+                }
+                
                 resultados.append({
                     "tipo": "reunião",
-                    "relevancia": relevancia,
-                    "dados": reuniao,
+                    "relevancia": reuniao.get('relevance', 1),
+                    "dados": dados_adaptados,
                     "trechos_relevantes": self.extrair_trechos_relevantes(
-                        reuniao['transcricao'], 
+                        reuniao.get('transcription_full', ''), 
                         termos
                     )
                 })
-        
-        # ===== ORDENAÇÃO E LIMITAÇÃO =====
-        # Ordena por relevância decrescente e limita resultados
-        resultados.sort(key=lambda x: x['relevancia'], reverse=True)
-        
-        return resultados[:self.max_resultados]
+            
+            # ===== ORDENAÇÃO E LIMITAÇÃO =====
+            # Ordena por relevância decrescente e limita resultados
+            resultados.sort(key=lambda x: x['relevancia'], reverse=True)
+            
+            return resultados[:self.max_resultados]
+            
+        except Exception as e:
+            raise RuntimeError(f"Erro ao buscar no Supabase: {e}")
     
     def buscar_em_documentos(self, termos: List[str]) -> List[Dict[str, Any]]:
         """
@@ -348,36 +388,60 @@ class AgenteConsultaInteligente(AgenteBase):
         Returns:
             List[Dict]: Documentos encontrados com relevância
         """
-        resultados = []
+        # ===== BUSCA APENAS NO BANCO REAL - SEM FALLBACKS =====
+        if not self.db:
+            raise RuntimeError("Sistema requer conexão com Supabase")
         
-        for doc in self.mock_documentos:
-            # ===== PREPARAÇÃO DO TEXTO DO DOCUMENTO =====
-            texto_busca = f"{doc['titulo']} {doc['autor']} {doc['conteudo']} {' '.join(doc['tags'])}"
+        try:
+            # Obtém departamento do usuário se disponível
+            department = None
+            if self.contexto_atual and 'user_data' in self.contexto_atual:
+                department = self.contexto_atual['user_data'].get('department')
             
-            # Calcular relevância
-            relevancia = self.calcular_relevancia(
-                texto_busca,
-                termos,
-                doc['titulo'],
-                doc['autor']
+            # Busca documentos no Supabase
+            documentos = self.db.buscar_documentos(
+                termos_busca=termos,
+                department=department,
+                limit=self.max_resultados
             )
             
-            if relevancia > 0:
+            # Formata resultados
+            resultados = []
+            for doc in documentos:
+                dados_adaptados = {
+                    "id": doc.get('id'),
+                    "titulo": doc.get('title', ''),
+                    "tipo": doc.get('doc_type', 'documento'),
+                    "data_criacao": doc.get('created_at', '')[:10] if doc.get('created_at') else '',
+                    "autor": "Sistema",  # TODO: Buscar nome do autor pelo ID
+                    "conteudo": doc.get('content_full', ''),
+                    "tags": doc.get('tags', [])
+                }
+                
+                # Calcula relevância
+                relevancia = self.calcular_relevancia(
+                    dados_adaptados['conteudo'],
+                    termos,
+                    dados_adaptados['titulo'],
+                    dados_adaptados['autor']
+                )
+                
                 resultados.append({
                     "tipo": "documento",
                     "relevancia": relevancia,
-                    "dados": doc,
+                    "dados": dados_adaptados,
                     "trechos_relevantes": self.extrair_trechos_relevantes(
-                        doc['conteudo'], 
+                        doc.get('content_full', ''), 
                         termos
                     )
                 })
-        
-        # ===== ORDENAÇÃO E LIMITAÇÃO =====
-        # Ordena por relevância decrescente e limita resultados
-        resultados.sort(key=lambda x: x['relevancia'], reverse=True)
-        
-        return resultados[:self.max_resultados]
+            
+            # Ordena por relevância
+            resultados.sort(key=lambda x: x['relevancia'], reverse=True)
+            return resultados[:self.max_resultados]
+            
+        except Exception as e:
+            raise RuntimeError(f"Erro ao buscar documentos no Supabase: {e}")
     
     def extrair_trechos_relevantes(self, texto: str, termos: List[str], 
                                   contexto_chars: int = 100) -> List[str]:
@@ -552,6 +616,43 @@ class AgenteConsultaInteligente(AgenteBase):
         Returns:
             List[Dict]: Reuniões no período
         """
+        # ===== BUSCA NO BANCO REAL SE DISPONÍVEL =====
+        if self.usar_banco_real:
+            try:
+                user_id = self.contexto_atual.get('user_id') if self.contexto_atual else None
+                
+                # Busca todas as reuniões do usuário
+                reunioes = self.db.buscar_reunioes_usuario(user_id, limit=100)
+                
+                # Filtra por período
+                resultados = []
+                for reuniao in reunioes:
+                    data_reuniao = reuniao.get('start_time', '')[:10]
+                    if data_inicio <= data_reuniao <= data_fim:
+                        dados_adaptados = {
+                            "id": reuniao.get('id'),
+                            "titulo": reuniao.get('title', ''),
+                            "data": data_reuniao,
+                            "hora": reuniao.get('start_time', '')[11:16] if reuniao.get('start_time') else '',
+                            "duracao": f"{reuniao.get('duration_seconds', 0) // 60} min",
+                            "participantes": reuniao.get('participants', []),
+                            "pauta": reuniao.get('key_points', []),
+                            "decisoes": reuniao.get('decisions', []),
+                            "transcricao": reuniao.get('transcription_full', ''),
+                            "tags": []
+                        }
+                        
+                        resultados.append({
+                            "tipo": "reunião",
+                            "dados": dados_adaptados
+                        })
+                
+                return resultados
+                
+            except Exception as e:
+                print(f"[ERRO] Falha ao buscar por período: {e}")
+        
+        # ===== FALLBACK PARA MOCK =====
         resultados = []
         
         # ===== FILTRA REUNIÕES POR PERÍODO =====
