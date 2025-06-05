@@ -201,14 +201,13 @@ class SupabaseHandler:
         try:
             query_text = ' '.join(termos_busca)
             
-            # Usar função RPC do Supabase
-            params = {
+            # Usar função RPC do Supabase com parâmetros corretos
+            # A função espera os parâmetros como argumentos diretos
+            response = self.client.rpc('search_meetings_text', {
                 'query_text': query_text,
-                'user_filter': user_id,
+                'user_filter': user_id if user_id else None,
                 'limit_results': limit
-            }
-            
-            response = self.client.rpc('search_meetings_text', params).execute()
+            }).execute()
             
             # Enriquecer resultados com dados completos
             if response.data:

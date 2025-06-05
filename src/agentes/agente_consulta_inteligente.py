@@ -18,13 +18,14 @@ else:
 # Importar o novo sistema de templates
 from .prompt_template import PromptTemplate, TomResposta
 
-# Importar handler do Supabase
+# Importar handlers do Supabase
 try:
     from ..database.supabase_handler import SupabaseHandler
+    from ..database.embeddings_handler import EmbeddingsHandler
     HAS_SUPABASE = True
 except ImportError:
     HAS_SUPABASE = False
-    print("[AVISO] Supabase não disponível, usando dados mock")
+    raise RuntimeError("Sistema requer Supabase e handlers configurados")
 
 
 class AgenteConsultaInteligente(AgenteBase):
@@ -66,6 +67,14 @@ class AgenteConsultaInteligente(AgenteBase):
             except Exception as e:
                 raise RuntimeError(f"Sistema requer Supabase configurado: {e}")
         
+        # ===== CONFIGURAÇÃO DO HANDLER DE EMBEDDINGS =====
+        # Para busca semântica avançada
+        try:
+            self.embeddings_handler = EmbeddingsHandler(self.db.client)
+        except Exception as e:
+            print(f"[AVISO] Handler de embeddings não disponível: {e}")
+            self.embeddings_handler = None
+        
         # ===== DICIONÁRIO DE SINÔNIMOS =====
         # Usado para expandir termos de busca e melhorar resultados
         self.sinonimos = {
@@ -83,78 +92,7 @@ class AgenteConsultaInteligente(AgenteBase):
         # SEMPRE usa banco real - sem mocks
         self.usar_banco_real = True  # Forçado para True
         
-        # REMOVIDO: Mock de base de dados - APENAS Supabase
-        self.mock_reunioes = []  # Vazio - não será usado
-            {
-                "id": "001",
-                "titulo": "Kickoff do Projeto AURALIS",
-                "data": "2024-01-15",
-                "hora": "14:00",
-                "duracao": "90 min",
-                "participantes": ["João Silva", "Maria Santos", "Pedro Oliveira", "Ana Costa"],
-                "pauta": ["Definição de escopo", "Cronograma", "Atribuição de responsabilidades"],
-                "decisoes": [
-                    "Prazo de entrega definido para 30/06/2024",
-                    "Maria Santos será a gerente do projeto",
-                    "Reuniões semanais às segundas 10h"
-                ],
-                "transcricao": "João: Vamos começar definindo o escopo do projeto AURALIS...",
-                "tags": ["kickoff", "projeto", "planejamento"]
-            },
-            {
-                "id": "002",
-                "titulo": "Revisão Sprint 1 - AURALIS",
-                "data": "2024-01-22",
-                "hora": "15:00",
-                "duracao": "60 min",
-                "participantes": ["Maria Santos", "Pedro Oliveira", "Lucas Mendes"],
-                "pauta": ["Review das entregas", "Impedimentos", "Próximos passos"],
-                "decisoes": [
-                    "Sprint aprovada com 85% das tarefas concluídas",
-                    "Necessário contratar mais um desenvolvedor",
-                    "Ajustar estimativas para próxima sprint"
-                ],
-                "transcricao": "Maria: A sprint foi produtiva, mas encontramos alguns desafios...",
-                "tags": ["sprint", "review", "agile"]
-            },
-            {
-                "id": "003",
-                "titulo": "Brainstorming - Funcionalidades IA",
-                "data": "2024-01-25",
-                "hora": "10:00",
-                "duracao": "120 min",
-                "participantes": ["Pedro Oliveira", "Ana Costa", "Carlos Tech", "João Silva"],
-                "pauta": ["Ideação de features", "Priorização", "Viabilidade técnica"],
-                "decisoes": [
-                    "Implementar busca semântica como prioridade 1",
-                    "Sistema de agentes para processamento inteligente",
-                    "Interface de voz para próxima fase"
-                ],
-                "transcricao": "Ana: Precisamos pensar em como a IA pode agregar valor...",
-                "tags": ["brainstorm", "ia", "funcionalidades", "inovação"]
-            }
-        ]
-        
-        self.mock_documentos = [
-            {
-                "id": "doc001",
-                "titulo": "Plano de Projeto AURALIS",
-                "tipo": "documento",
-                "data_criacao": "2024-01-10",
-                "autor": "João Silva",
-                "conteudo": "Documento detalhando objetivos, escopo e metodologia do projeto...",
-                "tags": ["planejamento", "projeto", "documentação"]
-            },
-            {
-                "id": "doc002",
-                "titulo": "Arquitetura do Sistema",
-                "tipo": "documento técnico",
-                "data_criacao": "2024-01-20",
-                "autor": "Pedro Oliveira",
-                "conteudo": "Descrição da arquitetura multi-agente, componentes e integrações...",
-                "tags": ["arquitetura", "técnico", "sistema"]
-            }
-        ]
+        # REMOVIDO: Todo código mock - APENAS Supabase
     
     def get_prompt_sistema(self) -> str:
         """
@@ -193,9 +131,29 @@ class AgenteConsultaInteligente(AgenteBase):
         print(f"[CONSULTA] Termos expandidos: {termos_expandidos}")
         
         # ===== BUSCA EM MÚLTIPLAS FONTES =====
-        # Realiza busca em reuniões e documentos separadamente
-        resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
-        resultados_documentos = self.buscar_em_documentos(termos_expandidos)
+        # Tenta busca semântica primeiro, fallback para busca textual
+        if self.embeddings_handler:
+            try:
+                # Busca semântica usando embeddings
+                print("[CONSULTA] Usando busca semântica com embeddings")
+                resultados_semanticos = self.embeddings_handler.buscar_por_similaridade(
+                    query=mensagem,
+                    limite=self.max_resultados,
+                    filtros={'user_id': self.contexto_atual.get('user_id')} if self.contexto_atual else None
+                )
+                
+                # Converter resultados semânticos para formato padrão
+                resultados_reunioes = self._converter_resultados_semanticos(resultados_semanticos)
+                resultados_documentos = []  # TODO: Implementar busca semântica em documentos
+            except Exception as e:
+                print(f"[CONSULTA] Erro na busca semântica, usando busca textual: {e}")
+                # Fallback para busca textual
+                resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
+                resultados_documentos = self.buscar_em_documentos(termos_expandidos)
+        else:
+            # Busca textual tradicional
+            resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
+            resultados_documentos = self.buscar_em_documentos(termos_expandidos)
         
         # ===== CONSOLIDAÇÃO DOS RESULTADOS =====
         # Formata todos os resultados em uma resposta estruturada
@@ -746,6 +704,45 @@ class AgenteConsultaInteligente(AgenteBase):
                 resumo.append(f"• {decisao}")
         
         return "\n".join(resumo)
+    
+    def _converter_resultados_semanticos(self, resultados_semanticos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Converte resultados da busca semântica para o formato esperado.
+        
+        Args:
+            resultados_semanticos: Resultados da busca por embeddings
+            
+        Returns:
+            Lista no formato padrão do agente
+        """
+        resultados_convertidos = []
+        
+        for resultado in resultados_semanticos:
+            meeting_data = resultado.get('meeting_data', {})
+            
+            if meeting_data:
+                # Adaptar formato para o esperado pelo agente
+                dados_adaptados = {
+                    "id": meeting_data.get('id'),
+                    "titulo": meeting_data.get('title', ''),
+                    "data": meeting_data.get('start_time', '')[:10] if meeting_data.get('start_time') else '',
+                    "hora": meeting_data.get('start_time', '')[11:16] if meeting_data.get('start_time') else '',
+                    "duracao": f"{meeting_data.get('duration_seconds', 0) // 60} min",
+                    "participantes": meeting_data.get('participants', []),
+                    "pauta": meeting_data.get('key_points', []),
+                    "decisoes": meeting_data.get('decisions', []),
+                    "transcricao": meeting_data.get('transcription_full', ''),
+                    "tags": []
+                }
+                
+                resultados_convertidos.append({
+                    "tipo": "reunião",
+                    "relevancia": resultado.get('similarity', 0) * 100,  # Converter para escala 0-100
+                    "dados": dados_adaptados,
+                    "trechos_relevantes": [resultado.get('chunk_text', '')[:200] + "..."] if resultado.get('chunk_text') else []
+                })
+        
+        return resultados_convertidos
     
     def __repr__(self):
         return f"AgenteConsultaInteligente(max_resultados={self.max_resultados})"

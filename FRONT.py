@@ -67,9 +67,8 @@ class SistemaTFT:
         
         # Inicializar backend AURALIS com sistema de agentes IA
         print("🚀 Inicializando backend AURALIS...")
-        # Forçar modo mock temporariamente devido a erro no Supabase
-        # TODO: Mudar para mock_mode=None quando o banco estiver configurado
-        self.backend = AURALISBackend(mock_mode=True)  # Usando mock para permitir login admin/admin123
+        # Backend conectado APENAS ao Supabase
+        self.backend = AURALISBackend()  # Sem mocks - apenas Supabase
         
         # Paleta de cores personalizada otimizada para tema escuro
         # Cores cuidadosamente selecionadas para boa visibilidade e acessibilidade

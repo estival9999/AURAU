@@ -47,7 +47,7 @@ class SistemaAgentes:
             "sistema": "AURALIS",
             "versao": "1.0.0",
             "inicializado_em": datetime.now().isoformat(),
-            "modo": "simulado" if not os.getenv("OPENAI_API_KEY") else "produção"
+            "modo": "produção"  # SEMPRE produção - requer OpenAI
         }
         
         # ===== INICIALIZAÇÃO DOS AGENTES =====
@@ -155,22 +155,15 @@ class SistemaAgentes:
             # Adiciona marca temporal à interação
             contexto_completo["timestamp_interacao"] = datetime.now().isoformat()
             
-            # ===== VERIFICAÇÃO DE CACHE =====
-            # Busca resposta em cache para economizar processamento
-            cache_key = self.otimizador.cache._gerar_chave(mensagem, contexto_completo)
-            resposta_cache = self.otimizador.cache.get(cache_key)
-            
-            if resposta_cache:
-                if self.modo_debug:
-                    print("[SISTEMA] Resposta encontrada no cache")
-                return resposta_cache
+            # ===== REMOVIDO CACHE - SEMPRE CONSULTAR OPENAI =====
+            # Conforme instrução do usuário, NÃO usar cache
+            # TODA resposta deve vir da LLM OpenAI em tempo real
             
             # ===== PROCESSAMENTO PRINCIPAL =====
             # Envia mensagem para o orquestrador processar
             resposta = self.orquestrador.processar_mensagem(mensagem, contexto_completo)
             
-            # Armazena resposta no cache para futuras consultas
-            self.otimizador.cache.set(cache_key, resposta)
+            # NÃO armazenar em cache - sempre consultar OpenAI
             
             # ===== ATUALIZAÇÃO DE ESTATÍSTICAS =====
             tempo_processamento = (datetime.now() - inicio).total_seconds()

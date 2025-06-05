@@ -65,9 +65,9 @@ class AgenteBase(ABC):
                 from openai import OpenAI
                 self.openai_client = OpenAI(api_key=api_key)
             except ImportError:
-                print(f"[{self.nome}] Biblioteca OpenAI não instalada. Usando modo simulado.")
+                raise RuntimeError(f"[{self.nome}] Biblioteca OpenAI não instalada. Execute: pip install openai")
             except Exception as e:
-                print(f"[{self.nome}] Erro ao inicializar cliente OpenAI: {str(e)}")
+                raise RuntimeError(f"[{self.nome}] Erro ao inicializar OpenAI: {str(e)}")
     
     @abstractmethod
     def get_prompt_sistema(self) -> str:
@@ -104,9 +104,9 @@ class AgenteBase(ABC):
         Returns:
             str: Resposta do modelo
         """
-        # Verifica se o cliente OpenAI está disponível
+        # APENAS OpenAI - sem fallbacks locais
         if not self.openai_client:
-            return self._resposta_simulada(mensagem)
+            raise RuntimeError("Sistema requer OpenAI configurado. Verifique OPENAI_API_KEY no .env")
         
         try:
             # Preparar mensagens para enviar ao modelo
@@ -134,20 +134,11 @@ class AgenteBase(ABC):
             return response.choices[0].message.content
             
         except Exception as e:
-            print(f"[{self.nome}] Erro ao chamar modelo de linguagem: {str(e)}")
-            return self._resposta_simulada(mensagem)
+            erro_msg = f"Erro ao chamar OpenAI: {str(e)}"
+            print(f"[{self.nome}] {erro_msg}")
+            raise RuntimeError(erro_msg)
     
-    def _resposta_simulada(self, mensagem: str) -> str:
-        """
-        Gera uma resposta simulada quando não há acesso ao LLM.
-        
-        Args:
-            mensagem: Mensagem recebida
-            
-        Returns:
-            str: Resposta simulada
-        """
-        return f"[MODO SIMULADO - {self.nome}] Recebi sua mensagem: '{mensagem}'. Em produção, processaria com IA."
+    # REMOVIDO _resposta_simulada - APENAS OpenAI, sem simulações
     
     def adicionar_ao_historico(self, mensagem: str, resposta: str):
         """

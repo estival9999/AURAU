@@ -144,6 +144,111 @@ O sistema AURALIS deve utilizar **EXCLUSIVAMENTE** Supabase na nuvem para TODAS 
 ### ⚠️ ATENÇÃO CRÍTICA:
 Esta é uma diretriz de MÁXIMA PRIORIDADE. Ignorar esta regra invalida completamente a implementação. O sistema deve ser 100% dependente do Supabase - sem isso, não deve funcionar.
 
+## 🔥🚨 REGRAS CRÍTICAS DE SEGURANÇA - VIOLAÇÃO = FALHA TOTAL 🚨🔥
+
+### 🛑 RULE #1: MANIPULAÇÃO DE CAMINHOS - PREVENÇÃO DE DIRETÓRIOS ERRADOS
+
+#### ❌ PROBLEMA CRÍTICO IDENTIFICADO:
+Uso de barras invertidas em caminhos com espaços causa criação de múltiplos diretórios incorretos!
+
+#### ✅ SOLUÇÃO OBRIGATÓRIA - USE SEMPRE:
+
+```bash
+# ✅✅✅ CORRETO - SEMPRE USE ASPAS DUPLAS:
+mkdir -p "/home/mateus/Área de trabalho/X_AURA/READMES_COMP"
+cd "/home/mateus/Área de trabalho/X_AURA"
+python "/home/mateus/Área de trabalho/X_AURA/main.py"
+
+# ❌❌❌ PROIBIDO - NUNCA FAÇA ISSO:
+mkdir -p /home/mateus/Área\ de\ trabalho/X_AURA/READMES_COMP  # CRIA DIRETÓRIOS ERRADOS!
+cd /home/mateus/Área\ de\ trabalho/X_AURA  # FALHA!
+```
+
+#### 🔐 VALIDAÇÃO OBRIGATÓRIA ANTES DE CRIAR DIRETÓRIOS:
+```bash
+# 1. SEMPRE verifique o diretório pai primeiro:
+ls -la "/home/mateus/Área de trabalho/X_AURA"
+
+# 2. ENTÃO crie com aspas duplas:
+mkdir -p "/home/mateus/Área de trabalho/X_AURA/READMES_COMP"
+
+# 3. CONFIRME que foi criado corretamente:
+ls -la "/home/mateus/Área de trabalho/X_AURA/READMES_COMP"
+```
+
+#### 🛠️ USE O UTILITÁRIO DE CAMINHOS SEGUROS:
+```python
+# SEMPRE prefira usar o utilitário quando disponível:
+from src.utils_caminhos import ManipuladorCaminhos
+
+manipulador = ManipuladorCaminhos()
+manipulador.criar_diretorio_seguro("/home/mateus/Área de trabalho/X_AURA/READMES_COMP")
+```
+
+#### ⚠️ SINAIS DE ALERTA DE ERRO:
+- Se você vir diretórios como: `de/`, `trabalho/`, `Área/` sozinhos
+- Se o comando retornar erro de "diretório não encontrado"
+- Se arquivos forem criados em locais inesperados
+
+### 🛑 RULE #2: ORDEM CRONOLÓGICA DE READMEs - SEQUÊNCIA OBRIGATÓRIA
+
+#### ❌ PROBLEMA CRÍTICO IDENTIFICADO:
+READMEs criados fora de ordem quebram a rastreabilidade do projeto!
+
+#### ✅ SOLUÇÃO OBRIGATÓRIA - VALIDAÇÃO DE SEQUÊNCIA:
+
+```python
+# SEMPRE use o sistema de validação antes de criar README:
+from src.sistema_readme_validator import ValidadorReadme
+
+validador = ValidadorReadme()
+
+# 1. OBTENHA o próximo ID válido:
+proximo_id = validador.obter_proximo_id()
+print(f"Próximo ID: {proximo_id}")
+
+# 2. VALIDE antes de criar:
+nome_readme = f"README_04_06_1430_{proximo_id}.md"
+if validador.validar_nome_readme(nome_readme):
+    # OK para criar
+    caminho = f"/home/mateus/Área de trabalho/X_AURA/READMES_COMP/{nome_readme}"
+else:
+    # ERRO - ID fora de sequência!
+    raise ValueError("ID de README fora de sequência!")
+```
+
+#### 📋 CHECKLIST OBRIGATÓRIO ANTES DE CRIAR README:
+1. ✓ Verificar último README existente com `ls -la READMES_COMP/ | tail -5`
+2. ✓ Confirmar que o novo ID é exatamente último + 1
+3. ✓ Usar formato: `README_DD_MM_HHMM_XXX.md` (XXX com 3 dígitos)
+4. ✓ NUNCA pular números ou criar fora de ordem
+
+#### 🚨 EXEMPLOS DE VIOLAÇÃO:
+```
+❌ Último: README_04_06_1400_123.md → Criando: README_04_06_1405_125.md (PULOU 124!)
+❌ Último: README_04_06_1400_123.md → Criando: README_04_06_1405_023.md (VOLTOU!)
+✅ Último: README_04_06_1400_123.md → Criando: README_04_06_1405_124.md (CORRETO!)
+```
+
+### 🔴 CONSEQUÊNCIAS DE VIOLAÇÃO:
+1. **Caminhos errados**: Sistema quebrado, arquivos perdidos, estrutura corrompida
+2. **READMEs fora de ordem**: Histórico incompreensível, rastreabilidade perdida
+3. **Impacto**: Horas de trabalho perdidas corrigindo erros evitáveis
+
+### ⚡ AÇÃO IMEDIATA REQUERIDA:
+- Antes de QUALQUER operação com arquivos: REVISE ESTAS REGRAS
+- Na dúvida: USE OS UTILITÁRIOS DE VALIDAÇÃO
+- Detectou erro: PARE e CORRIJA IMEDIATAMENTE
+
+### 🎯 LEMBRE-SE:
+```
+ASPAS DUPLAS em caminhos = SUCESSO
+Barras invertidas = DESASTRE
+
+README em sequência = PROJETO ORGANIZADO  
+README fora de ordem = CAOS TOTAL
+```
+
 ## 🧠 INSTRUÇÃO CRÍTICA - ANÁLISE OBRIGATÓRIA DE CONTEXTO HISTÓRICO
 
 ### REGRA FUNDAMENTAL: Antes de processar QUALQUER solicitação, você DEVE:
@@ -500,3 +605,115 @@ A9 --> README9[README_04_01_1800_017.md]
 - Permite navegação rápida para READMEs específicos
 - Essencial para rastreabilidade do projeto
 - DEVE ser atualizado em CADA resposta junto com o README
+
+============================================================
+DEMONSTRAÇÃO DO PROBLEMA COM BARRAS INVERTIDAS
+============================================================
+
+❌ FORMA ERRADA (com barras invertidas):
+   /home/mateus/Área\ de\ trabalho/X_AURA/teste
+   Isso pode criar diretórios como: 'Área\', 'de\', 'trabalho\'
+
+✅ FORMA CORRETA (sem escapes, usar aspas no shell):
+   /home/mateus/Área de trabalho/X_AURA/teste
+   No shell usar: mkdir -p "/home/mateus/Área de trabalho/X_AURA/teste"
+
+============================================================
+SOLUÇÕES IMPLEMENTADAS
+============================================================
+
+1. NORMALIZAÇÃO DE CAMINHOS:
+   Original: /home/mateus/Área de trabalho/X_AURA/teste_espacos/novo diretório
+   Normalizado: /home/mateus/Área de trabalho/X_AURA/teste_espacos/novo diretório
+
+2. FORMATAÇÃO PARA SHELL:
+   Com aspas duplas: "/home/mateus/Área de trabalho/X_AURA/teste_espacos/novo diretório"
+   Shell-safe (shlex): '/home/mateus/Área de trabalho/X_AURA/teste_espacos/novo diretório'
+
+3. CRIAÇÃO SEGURA DE DIRETÓRIOS:
+   Usando Python Path (recomendado):
+   >>> manipulador.criar_diretorio_seguro('/home/mateus/Área de trabalho/X_AURA/teste_espacos/novo diretório')
+   ✅ Diretório criado com sucesso!
+   ✅ Verificado: diretório existe no local correto
+   🗑️  Diretório de teste removido
+
+============================================================
+EXEMPLOS PRÁTICOS DE USO
+============================================================
+
+📁 EXEMPLO 1: Criar estrutura de diretórios do projeto
+
+   Criando: /home/mateus/Área de trabalho/X_AURA/src/database
+   Comando seguro: mkdir -p "/home/mateus/Área de trabalho/X_AURA/src/database"
+
+   Criando: /home/mateus/Área de trabalho/X_AURA/src/database/migrations
+   Comando seguro: mkdir -p "/home/mateus/Área de trabalho/X_AURA/src/database/migrations"
+
+   Criando: /home/mateus/Área de trabalho/X_AURA/src/database/models
+   Comando seguro: mkdir -p "/home/mateus/Área de trabalho/X_AURA/src/database/models"
+
+   Criando: /home/mateus/Área de trabalho/X_AURA/data/audio files
+   Comando seguro: mkdir -p "/home/mateus/Área de trabalho/X_AURA/data/audio files"
+
+   Criando: /home/mateus/Área de trabalho/X_AURA/data/meeting notes
+   Comando seguro: mkdir -p "/home/mateus/Área de trabalho/X_AURA/data/meeting notes"
+
+
+📝 EXEMPLO 2: Comandos shell seguros
+   # Listar arquivos em diretório com espaços:
+   ls -la "/home/mateus/Área de trabalho/X_AURA"
+
+   # Copiar arquivo para diretório com espaços:
+   cp arquivo.txt "/home/mateus/Área de trabalho/X_AURA/data/meeting notes/"
+
+   # Mover arquivo entre diretórios com espaços:
+   mv "/home/mateus/Área de trabalho/X_AURA/old file.txt" "/home/mateus/Área de trabalho/X_AURA/new file.txt"
+
+
+🐍 EXEMPLO 3: Uso em Python
+
+from pathlib import Path
+from src.utils_caminhos import ManipuladorCaminhos
+
+# Método 1: Usando pathlib (recomendado)
+caminho = Path("/home/mateus/Área de trabalho/X_AURA/src/database")
+caminho.mkdir(parents=True, exist_ok=True)
+
+# Método 2: Usando o utilitário
+manipulador = ManipuladorCaminhos()
+manipulador.criar_diretorio_seguro("/home/mateus/Área de trabalho/X_AURA/src/database")
+
+# Método 3: Executar comando shell de forma segura
+sucesso, output = manipulador.executar_comando_seguro(
+    "mkdir -p",
+    "/home/mateus/Área de trabalho/X_AURA/src/database"
+)
+
+
+============================================================
+⚠️  REGRAS IMPORTANTES - MEMORIZE!
+============================================================
+
+   🔸 1. SEMPRE use aspas duplas em caminhos com espaços no shell
+
+   🔸 2. NUNCA use barras invertidas (\) para escapar espaços
+
+   🔸 3. SEMPRE valide o caminho antes de criar diretórios
+
+   🔸 4. PREFIRA usar Python Path em vez de comandos shell quando possível
+
+   🔸 5. SEMPRE verifique se o diretório foi criado no local correto
+
+   🔸 6. Use o utilitário utils_caminhos.py para operações complexas
+
+   🔸 7. Em caso de dúvida, imprima o caminho primeiro para verificar
+
+
+💡 DICA FINAL:
+   Se você ver diretórios como 'de/', 'trabalho/', 'Área/' criados
+   isoladamente, é sinal de que houve erro com escapes de espaços!
+
+
+============================================================
+✅ DEMONSTRAÇÃO COMPLETA!
+============================================================

@@ -1,2 +1,0 @@
-1-  aplicar o planejamento de rag/embeddings/semantica para resgate dos contextos do historico de reunioes para as novas que serao gravadsa daqui em diaante e também  para base de conhecimento, a qual sera imputada atravez de um codigo .py que transforma o arquivo .txt com texto dos manuais e procedimentos e upa pra database similar ao que ocorre anteriormente decsrito conforme base dehistorico das reunioes.
-

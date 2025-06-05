@@ -30,7 +30,9 @@ class CacheInteligente:
             max_size: Número máximo de entradas no cache
             ttl_minutos: Tempo de vida das entradas em minutos
         """
-        # ===== ESTRUTURA DE DADOS =====
+        # ===== CACHE DESABILITADO - SEMPRE CONSULTAR OPENAI =====
+        # Conforme instrução do usuário, NÃO usar cache
+        self.cache_habilitado = False  # SEMPRE False
         self.cache: OrderedDict = OrderedDict()  # Mantém ordem de inserção
         self.max_size = max_size
         self.ttl = timedelta(minutes=ttl_minutos)
@@ -74,6 +76,11 @@ class CacheInteligente:
         Returns:
             Valor armazenado ou None
         """
+        # CACHE DESABILITADO - sempre retorna None
+        if not self.cache_habilitado:
+            self.misses += 1
+            return None
+            
         with self.lock:
             # Verifica se existe no cache
             if chave not in self.cache:
@@ -106,6 +113,10 @@ class CacheInteligente:
             valor: Valor a armazenar
             ttl_customizado: TTL customizado em minutos (opcional)
         """
+        # CACHE DESABILITADO - não armazena nada
+        if not self.cache_habilitado:
+            return
+            
         with self.lock:
             # Se já existe, apenas move para o final
             if chave in self.cache:
