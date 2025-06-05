@@ -122,6 +122,43 @@ All detailed documentation has been organized in the `/docs` folder:
 - As instruções em `docs/compact.md` referem-se ao histórico de mensagens/alterações/modificações/incrementações/ajustes que foram tratados anteriormente, são relevantes para considerar no contexto para manter a consistência nas execuções posteriores
 - Sempre gerar respostas no terminal e instruções dentro de códigos .py em português Brasil
 
+## 🧠 INSTRUÇÃO CRÍTICA - ANÁLISE OBRIGATÓRIA DE CONTEXTO HISTÓRICO
+
+### REGRA FUNDAMENTAL: Antes de processar QUALQUER solicitação, você DEVE:
+
+1. **Analisar o Contexto Histórico Completo**:
+   - Consultar `/home/mateus/Área de trabalho/X_AURA/FLUXOGRAMA.md` para visão geral das alterações
+   - Verificar READMEs relevantes em `/home/mateus/Área de trabalho/X_AURA/READMES_COMP/`
+   - Identificar padrões, decisões anteriores e lições aprendidas
+   - Manter consistência com escolhas arquiteturais já estabelecidas
+
+2. **Prevenção de Alucinações e Erros**:
+   - NUNCA assumir funcionalidades ou estruturas sem verificar no histórico
+   - SEMPRE validar se uma alteração similar já foi tentada antes
+   - Consultar READMEs anteriores para evitar repetir erros já corrigidos
+   - Manter coerência com o estado atual do sistema documentado no fluxograma
+
+3. **Uso do Contexto Histórico**:
+   ```
+   Antes de implementar:
+   1. Verificar FLUXOGRAMA.md → "Esta funcionalidade já existe?"
+   2. Buscar em READMES_COMP → "Alguém já tentou algo similar?"
+   3. Analisar falhas anteriores → "Que erros devo evitar?"
+   4. Seguir padrões estabelecidos → "Como isso foi feito antes?"
+   ```
+
+4. **Referências Cruzadas Obrigatórias**:
+   - Ao modificar algo existente: referenciar README original da implementação
+   - Ao corrigir bugs: citar README onde o problema foi introduzido
+   - Ao refatorar: listar todos READMEs das implementações anteriores
+   - Ao adicionar features: verificar se não conflita com decisões passadas
+
+### ⚠️ ATENÇÃO CRÍTICA:
+- Ignorar o histórico = alta probabilidade de reintroduzir bugs
+- Não consultar contexto = risco de decisões conflitantes
+- Esta análise deve preceder até mesmo o ULTRATHINKS
+- O histórico é sua memória de longo prazo - USE-O!
+
 
 ## 📜 MISSÃO CRÍTICA DO ASSISTENTE DE DESENVOLVIMENTO AURAU
 
@@ -206,19 +243,61 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
    # Comandos exatos executados
    ```
    
-   ## 💻 Código/Alterações Implementadas
+   ## 💻 Código/Alterações Implementadas ULTRA-DETALHADAS
    ### Arquivo: [nome_do_arquivo.ext]
-   #### Mudanças Realizadas
-   ```[linguagem]
-   # Código anterior (se alteração)
-   [código antigo]
    
-   # Código novo
-   [código novo]
-   ```
+   #### Contexto da Alteração
+   - **Função/Classe afetada**: [Nome específico]
+   - **Linha(s) modificada(s)**: [Ex: linhas 45-67]
+   - **Razão da mudança**: [Por que foi necessário alterar]
    
-   #### Justificativa Técnica
-   [Explicação detalhada de por que essa abordagem foi escolhida]
+   #### Processo de Implementação Detalhado
+   1. **Tentativa Inicial**:
+      ```[linguagem]
+      # O que tentei primeiro:
+      [código da primeira tentativa]
+      ```
+      - **Resultado**: [O que aconteceu ao testar]
+      - **Problema encontrado**: [Erro específico ou comportamento inesperado]
+      - **Log/Erro**: ```[mensagem de erro se houver]```
+   
+   2. **Análise do Problema**:
+      - **Causa raiz**: [Por que falhou]
+      - **Variáveis envolvidas**: [Ex: "variável XYZ estava undefined"]
+      - **Dependências afetadas**: [Outros componentes impactados]
+   
+   3. **Solução Implementada**:
+      ```[linguagem]
+      # Código anterior (antes da mudança):
+      [código antigo exato, com contexto suficiente]
+      
+      # Código novo (após correção):
+      [código novo implementado]
+      ```
+      - **Mudanças específicas**:
+        - Removido: [Ex: "variável XYZ na linha 47"]
+        - Adicionado: [Ex: "validação de null na linha 45"]
+        - Modificado: [Ex: "tipo de retorno de string para number"]
+   
+   4. **Testes Realizados**:
+      - **Teste 1**: [Descrição do teste]
+        - Comando: `[comando executado]`
+        - Resultado esperado: [O que deveria acontecer]
+        - Resultado obtido: [O que realmente aconteceu]
+        - Status: ✅ Passou / ❌ Falhou
+      
+      - **Teste 2**: [Testes adicionais se houver]
+   
+   5. **Ajustes Finais** (se necessário):
+      - **Problema secundário**: [Se algo mais foi descoberto]
+      - **Correção adicional**: [O que mais foi ajustado]
+      
+   #### Justificativa Técnica Completa
+   - **Por que esta abordagem**: [Explicação detalhada]
+   - **Alternativas descartadas**: [Outras soluções consideradas e por que foram rejeitadas]
+   - **Trade-offs**: [Prós e contras da solução escolhida]
+   - **Impacto na performance**: [Se relevante]
+   - **Compatibilidade**: [Com outras partes do sistema]
    
    ## 🎯 Decisões Técnicas e Arquiteturais
    ### Decisões Tomadas
@@ -237,10 +316,35 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
    - Performance esperada: [Métricas se aplicável]
    - Melhorias implementadas: [O que melhorou]
    
-   ### Testes e Validações
-   - Testes realizados: [Descrição dos testes]
-   - Resultados obtidos: [Sucesso/falhas]
-   - Evidências: [Logs, screenshots se aplicável]
+   ### Testes e Validações COMPLETOS
+   #### Ambiente de Teste
+   - **Sistema**: [OS, versão Python, etc.]
+   - **Dependências**: [Versões específicas]
+   - **Estado inicial**: [Como estava antes dos testes]
+   
+   #### Execução dos Testes
+   1. **Teste Unitário/Funcional**:
+      - **Setup**: [Preparação necessária]
+      - **Execução**: 
+        ```bash
+        [comandos exatos executados]
+        ```
+      - **Output completo**:
+        ```
+        [saída do terminal/logs]
+        ```
+      - **Análise**: [Interpretação dos resultados]
+   
+   2. **Teste de Integração** (se aplicável):
+      - **Componentes testados**: [Lista]
+      - **Cenários cobertos**: [Casos de uso]
+      - **Edge cases**: [Situações extremas testadas]
+   
+   #### Resultados e Evidências
+   - **Taxa de sucesso**: [X de Y testes passaram]
+   - **Falhas encontradas**: [Detalhes de qualquer falha]
+   - **Screenshots/Logs**: [Se aplicável]
+   - **Métricas coletadas**: [Performance, memória, etc.]
    
    ## ⚠️ Riscos e Considerações
    ### Possíveis Problemas
@@ -289,10 +393,37 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
    - Prioridade: [Ex: Alta/Média/Baixa]
    - Sprint/Fase: [Se aplicável]
    
+   ## 🔍 Depuração e Troubleshooting 
+   ### Problemas Encontrados Durante Desenvolvimento
+   1. **Erro/Bug 1**:
+      - **Sintoma**: [O que estava acontecendo]
+      - **Investigação**: [Passos para identificar a causa]
+      - **Descoberta**: [Qual era o problema real]
+      - **Solução**: [Como foi resolvido]
+      - **Prevenção futura**: [Como evitar que aconteça novamente]
+   
+   2. **Erro/Bug 2**: [Repetir estrutura se houver mais]
+   
+   ### Lições Aprendidas
+   - **O que funcionou bem**: [Abordagens bem-sucedidas]
+   - **O que não funcionou**: [Tentativas falhas e por quê]
+   - **Insights técnicos**: [Descobertas importantes]
+   - **Melhorias no processo**: [Como fazer melhor na próxima vez]
+   
    ## 📝 Notas Adicionais e Contexto
-   [Qualquer informação adicional relevante para entender completamente 
-   esta interação, incluindo conversas anteriores relevantes, decisões 
-   de design, ou contexto do negócio]
+   ### Histórico Relevante
+   - **READMEs relacionados**: [Links para documentações anteriores relevantes]
+   - **Decisões anteriores que impactaram**: [Referências ao FLUXOGRAMA.md]
+   - **Padrões seguidos**: [Consistência com implementações passadas]
+   
+   ### Contexto de Negócio
+   - **Requisito original**: [De onde veio a necessidade]
+   - **Stakeholders impactados**: [Quem será afetado]
+   - **Prazo/Urgência**: [Se aplicável]
+   
+   ### Observações Técnicas
+   [Qualquer informação adicional relevante, descobertas inesperadas, 
+   comportamentos peculiares do sistema, ou avisos para futuros desenvolvedores]
    
    ## ⏰ Timestamp e Versionamento
    - Criado em: DD/MM/AAAA HH:MM
@@ -312,3 +443,36 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
 - Esta é uma REGRA MESTRA inviolável
 - Não criar o README = falha crítica na execução
 - Começar IMEDIATAMENTE a partir da próxima resposta
+
+## 📊 INSTRUÇÃO CRÍTICA - FLUXOGRAMA DE ALTERAÇÕES
+
+### REGRA ADICIONAL OBRIGATÓRIA: Além do README individual, você DEVE:
+
+1. **Manter atualizado** o arquivo FLUXOGRAMA.md na raiz do projeto:
+   - Localização: `/home/mateus/Área de trabalho/X_AURA/FLUXOGRAMA.md`
+   - Atualizar APÓS criar o README de cada resposta
+   
+2. **Estrutura do Fluxograma**:
+   - Adicionar novo nó no fluxo cronológico para cada alteração
+   - Usar ícones apropriados (🗑️ exclusão, ➕ adição, 📝 modificação, etc.)
+   - Incluir referência ao README correspondente
+   - Manter formato Mermaid para visualização
+   
+3. **Conteúdo do Fluxograma**:
+   - Resumo visual da alteração (1-2 linhas)
+   - Link para README detalhado em READMES_COMP/
+   - Atualizar estatísticas gerais
+   - Manter cronologia das alterações
+
+### Exemplo de atualização:
+```mermaid
+A8_3 --> A9[📝 Nova funcionalidade X]
+A9 --> A9_1[Detalhes da implementação]
+A9 --> README9[README_04_01_1800.md]
+```
+
+### ⚠️ IMPORTANTE:
+- O FLUXOGRAMA.md é o índice mestre de todas as alterações
+- Permite navegação rápida para READMEs específicos
+- Essencial para rastreabilidade do projeto
+- DEVE ser atualizado em CADA resposta junto com o README
