@@ -211,7 +211,47 @@ flowchart TD
     A33_3 --> A33_4[Commit: save ultima dodia, bonzin ate]
     A33 --> README33[README_08_01_0049_038.md]
     
-    A33_4 --> Current[Estado Atual: Sistema sincronizado com GitHub]
+    A33_4 --> A34[🔧 Git Commit - Refinar Prompts]
+    A34 --> A34_1[Reorganização documentação para /docs]
+    A34_1 --> A34_2[Refinamentos em supabase_handler]
+    A34_2 --> A34_3[Commit: refinar prompts de resposta da auralis]
+    A34_3 --> A34_4[Push para GitHub]
+    A34 --> README34[README_08_01_0540_040.md]
+    
+    A34_4 --> A35[📚 Adição Diretrizes Críticas CLAUDE.md]
+    A35 --> A35_1[Regras modularidade arquivos/funções]
+    A35_1 --> A35_2[Reflexão obrigatória pós-implementação]
+    A35_2 --> A35_3[Protocolo detalhado tratamento erros]
+    A35_3 --> A35_4[93 linhas de diretrizes adicionadas]
+    A35 --> README35[README_05_06_0545_041.md]
+    
+    A35_4 --> A36[📊 Análise Estrutura BD Supabase]
+    A36 --> A36_1[Leitura 3 arquivos SQL documentação]
+    A36_1 --> A36_2[Foco em knowledge_base e embeddings]
+    A36_2 --> A36_3[Resumo completo estrutura e funções]
+    A36 --> README36[README_08_01_0540_040.md]
+    
+    A36_3 --> A37[✅ Verificação Estrutura Supabase]
+    A37 --> A37_1[Scripts verificação criados]
+    A37_1 --> A37_2[6 tabelas encontradas em inglês]
+    A37_2 --> A37_3[Embeddings vazios identificados]
+    A37_3 --> A37_4[Estrutura mapeada completamente]
+    A37 --> README37[README_05_06_1310_041.md]
+    
+    A37_4 --> A38[🔧 Análise e Correção Sistema Embeddings]
+    A38 --> A38_1[Correção importar_base_conhecimento.py]
+    A38_1 --> A38_2[Fix embeddings_handler references]
+    A38_2 --> A38_3[Processamento 4 reuniões existentes]
+    A38_3 --> A38_4[131 embeddings criados total]
+    A38 --> README38[README_05_06_0648_042.md]
+    
+    A38_4 --> A39[📚 Adição Instrução Commit Obrigatório CLAUDE.md]
+    A39 --> A39_1[Nova seção crítica adicionada]
+    A39_1 --> A39_2[Formato mensagens definido]
+    A39_2 --> A39_3[Regra inviolável estabelecida]
+    A39 --> README39[README_05_06_1323_043.md]
+    
+    A39_3 --> Current[Estado Atual: Sistema com regra de commit obrigatório implementada]
 
     style Start fill:#90EE90
     style Current fill:#FFD700
@@ -248,6 +288,12 @@ flowchart TD
     style README31 fill:#E6E6FA
     style README32 fill:#E6E6FA
     style README33 fill:#E6E6FA
+    style README34 fill:#E6E6FA
+    style README35 fill:#E6E6FA
+    style README36 fill:#E6E6FA
+    style README37 fill:#E6E6FA
+    style README38 fill:#E6E6FA
+    style README39 fill:#E6E6FA
 ```
 
 ## 📁 Estrutura de Arquivos Afetados
@@ -312,22 +358,29 @@ Para análise completa de cada alteração, consulte:
 | Implementação RAG/Embeddings | [README_08_01_0042_037.md](READMES_COMP/README_08_01_0042_037.md) | Sistema busca semântica e remoção cache |
 | Atualização CLAUDE.md Regras Críticas | [README_04_06_2320_037.md](READMES_COMP/README_04_06_2320_037.md) | Regras de segurança para caminhos e ordem READMEs |
 | Git Commit Final do Dia | [README_08_01_0049_038.md](READMES_COMP/README_08_01_0049_038.md) | Commit e push "save ultima dodia, bonzin ate" |
+| Git Commit Refinar Prompts | [README_08_01_0540_040.md](READMES_COMP/README_08_01_0540_040.md) | Reorganização docs e refinamento prompts |
+| Adição Diretrizes Críticas | [README_05_06_0545_041.md](READMES_COMP/README_05_06_0545_041.md) | Diretrizes modularidade, reflexão e tratamento erros |
+| Análise Estrutura BD | [README_08_01_0540_040.md](READMES_COMP/README_08_01_0540_040.md) | Documentação completa knowledge_base e embeddings |
+| Verificação Estrutura Supabase | [README_05_06_1310_041.md](READMES_COMP/README_05_06_1310_041.md) | Descoberta tabelas em inglês e embeddings vazios |
+| Análise Sistema Embeddings | [README_05_06_0648_042.md](READMES_COMP/README_05_06_0648_042.md) | Correção sistema e criação 131 embeddings |
+| Instrução Commit Obrigatório | [README_05_06_1323_043.md](READMES_COMP/README_05_06_1323_043.md) | Adição regra commit obrigatório ao CLAUDE.md |
 
 ## 📈 Estatísticas do Projeto
 
-- **Total de alterações**: 33 principais
-- **Arquivos criados**: 16 (incluindo utils_caminhos.py + teste_caminhos_seguros.py)
+- **Total de alterações**: 39 principais
+- **Arquivos criados**: 18 (incluindo utils_caminhos.py + teste_caminhos_seguros.py + verificar_supabase_estrutura.py + verificar_todas_tabelas_supabase.py)
 - **Arquivos excluídos**: 4 (config_ia.py, 2 SQLs antigos, agente_base_simulado.py)
-- **Arquivos modificados**: 13 (CLAUDE.md 8x, FLUXOGRAMA.md 10x, agente_consulta_inteligente.py 2x, main.py 2x, __init__.py agentes 2x)
+- **Arquivos modificados**: 17 (CLAUDE.md 10x, FLUXOGRAMA.md 15x, importar_base_conhecimento.py 1x, embeddings_handler.py 1x)
 - **Arquivos renomeados**: 28 (16 inicial + 11 correção + 1 ID duplicado)
 - **Linhas de código SQL**: 372 (versão final definitiva)
-- **Scripts Python criados**: 10 (6 inicial + 2 para caminhos + embeddings_handler + importar_conhecimento)
-- **READMEs documentados**: 38 (33 no fluxo + 5 extras)
+- **Scripts Python criados**: 12 (6 inicial + 2 para caminhos + embeddings_handler + importar_conhecimento + 2 verificação Supabase)
+- **READMEs documentados**: 43 (39 no fluxo + 4 extras)
+- **Embeddings criados**: 131 total (81 reuniões + 50 knowledge base)
 - **Sistema de documentação**: 2 camadas + contexto obrigatório + IDs cronológicos
 - **Qualidade documentação**: Ultra-detalhada implementada + Regras críticas impossíveis de ignorar
 - **Dados inseridos no banco**: 21 registros (9 usuários, 4 reuniões, 8 interações IA)
 - **Validação banco**: ✅ Completa e funcional
-- **Commits GitHub**: 5 (incluindo checkpoints embeddings e fim de dia)
+- **Commits GitHub**: 6 (incluindo checkpoints embeddings, fim de dia e refinar prompts)
 - **Correções aplicadas**: Ordem cronológica restaurada 2x + IDs duplicados corrigidos + prevenção erros caminhos + sistema validação READMEs + regras críticas CLAUDE.md
 - **Análises realizadas**: Knowledge base validada + credenciais identificadas + integridade IDs + estrutura BD completa + integração agentes-BD + mapeamento completo BD + problema caminhos
 - **Estrutura BD documentada**: 4 tabelas, 15 índices, 4 funções SQL, 2 views, 3 extensões
@@ -367,4 +420,4 @@ echo "Próximo ID disponível: $next_id"
 - ✅ **Conformidade**: Total com instruções do usuário
 
 ---
-*Última atualização: 08/01/2025 00:55*
+*Última atualização: 05/06/2025 13:23*

@@ -14,6 +14,7 @@ from datetime import datetime
 import logging
 from typing import Optional
 import re
+import json
 
 # Adicionar diretório src ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -89,23 +90,22 @@ class ImportadorConhecimento:
             
             # Criar documento no banco
             logger.info("Inserindo documento no banco de dados...")
+            
+            # Preparar chunks do conteúdo
+            chunks = self._criar_chunks_inteligentes(conteudo)
+            
+            # Preparar dados do documento
             doc_data = {
                 'title': titulo,
                 'doc_type': tipo,
                 'content_full': conteudo,
                 'content_summary': resumo,
+                'content_chunks': json.dumps(chunks),  # JSONB como string
                 'department': departamento,
                 'tags': palavras_chave,
-                'metadata': {
-                    'arquivo_original': arquivo_nome,
-                    'tamanho_bytes': tamanho_bytes,
-                    'data_importacao': datetime.now().isoformat(),
-                    'num_caracteres': len(conteudo),
-                    'num_palavras': len(conteudo.split()),
-                    'num_linhas': conteudo.count('\n') + 1
-                },
+                'category': tipo,  # Usar tipo como categoria
                 'is_current': True,
-                'version': 1
+                'version': '1.0'  # String ao invés de número
             }
             
             # Inserir no banco
@@ -195,6 +195,66 @@ class ImportadorConhecimento:
         palavras_frequentes = sorted(freq.items(), key=lambda x: x[1], reverse=True)
         
         return [palavra for palavra, _ in palavras_frequentes[:num_palavras]]
+    
+    def _criar_chunks_inteligentes(self, conteudo: str, tamanho_chunk: int = 800) -> list:
+        """
+        Cria chunks inteligentes do conteúdo, respeitando parágrafos e seções.
+        
+        Args:
+            conteudo: Texto completo
+            tamanho_chunk: Tamanho aproximado de cada chunk
+            
+        Returns:
+            Lista de chunks com metadados
+        """
+        chunks = []
+        
+        # Dividir por parágrafos duplos (seções)
+        secoes = re.split(r'\n\n+', conteudo)
+        
+        chunk_atual = ""
+        chunk_id = 0
+        
+        for secao in secoes:
+            secao = secao.strip()
+            if not secao:
+                continue
+            
+            # Se adicionar a seção ultrapassar o tamanho, criar novo chunk
+            if chunk_atual and len(chunk_atual) + len(secao) > tamanho_chunk:
+                # Salvar chunk atual
+                chunks.append({
+                    'chunk_id': chunk_id,
+                    'text': chunk_atual.strip(),
+                    'embedding': None  # Será preenchido pelo embeddings_handler
+                })
+                chunk_id += 1
+                chunk_atual = secao
+            else:
+                # Adicionar ao chunk atual
+                if chunk_atual:
+                    chunk_atual += "\n\n" + secao
+                else:
+                    chunk_atual = secao
+        
+        # Adicionar último chunk se houver
+        if chunk_atual:
+            chunks.append({
+                'chunk_id': chunk_id,
+                'text': chunk_atual.strip(),
+                'embedding': None
+            })
+        
+        # Se nenhum chunk foi criado, criar um único com todo o conteúdo
+        if not chunks:
+            chunks.append({
+                'chunk_id': 0,
+                'text': conteudo.strip(),
+                'embedding': None
+            })
+        
+        logger.info(f"Criados {len(chunks)} chunks do documento")
+        return chunks
     
     def listar_documentos(self, departamento: Optional[str] = None):
         """

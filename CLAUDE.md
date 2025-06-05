@@ -717,3 +717,140 @@ sucesso, output = manipulador.executar_comando_seguro(
 ============================================================
 ✅ DEMONSTRAÇÃO COMPLETA!
 ============================================================
+
+## 🔥 DIRETRIZES CRÍTICAS DE DESENVOLVIMENTO - EXECUÇÃO OBRIGATÓRIA
+
+### 📐 REGRA #1: MODULARIDADE E MANUTENIBILIDADE
+
+#### OBRIGATÓRIO:
+- Quando um arquivo se tornar muito longo (>500 linhas), divida-o em arquivos menores
+- Quando uma função se tornar muito longa (>50 linhas), divida-a em funções menores
+- Mantenha alta coesão e baixo acoplamento entre módulos
+- Siga o princípio DRY (Don't Repeat Yourself)
+
+### 🧠 REGRA #2: REFLEXÃO PROFUNDA COM ULTRATHINKS - PÓS-IMPLEMENTAÇÃO
+
+#### AO FINALIZAR CADA RESPOSTA, OBRIGATORIAMENTE:
+1. **Análise de Escalabilidade**:
+   - Como a solução se comportará com 10x, 100x, 1000x mais dados?
+   - Quais são os gargalos potenciais?
+   - Onde estão os pontos de otimização?
+
+2. **Análise de Manutenibilidade**:
+   - O código é facilmente compreensível por outros desenvolvedores?
+   - As abstrações escolhidas são apropriadas?
+   - A documentação é suficiente?
+
+3. **Produzir Análise Estruturada** (1-2 parágrafos):
+   ```
+   <ultrathinks_pos_implementacao>
+   [Reflexão sobre escalabilidade]
+   [Reflexão sobre manutenibilidade]
+   [Sugestões de melhorias ou próximos passos]
+   </ultrathinks_pos_implementacao>
+   ```
+
+### 🚨 REGRA #3: PROTOCOLO DE TRATAMENTO DE ERROS/FALHAS
+
+#### QUANDO OCORREREM ERROS, FALHAS OU PROBLEMAS:
+
+1. **Análise Inicial Profunda**:
+   - Reflita sobre 5 a 7 possíveis causas do problema
+   - Documente cada hipótese com justificativa
+   - Reduza para 1 a 2 causas mais prováveis
+
+2. **Implementação de Diagnóstico**:
+   ```python
+   # ANTES de implementar a correção, adicione logs estratégicos:
+   import logging
+   
+   logging.debug(f"[DIAG] Estado antes: {variavel}")
+   # ... código ...
+   logging.debug(f"[DIAG] Estado depois: {variavel}")
+   logging.debug(f"[DIAG] Transformação de {tipo_antes} para {tipo_depois}")
+   ```
+
+3. **Coleta de Evidências**:
+   - Use ferramentas disponíveis: `getConsoleLogs`, `getConsoleErrors`, `getNetworkLogs`, `getNetworkErrors`
+   - Obtenha logs do servidor (se acessíveis)
+   - Se não acessíveis, solicite ao usuário: "Por favor, copie e cole os logs do servidor"
+
+4. **Análise Compreensiva**:
+   ```
+   <analise_erro>
+   Hipótese 1: [Descrição] - Probabilidade: [Alta/Média/Baixa]
+   Hipótese 2: [Descrição] - Probabilidade: [Alta/Média/Baixa]
+   ...
+   
+   Causa mais provável: [Análise detalhada]
+   Evidências coletadas: [Logs, estados, transformações]
+   Solução proposta: [Descrição técnica]
+   </analise_erro>
+   ```
+
+5. **Sugestão de Logs Adicionais** (se problema persistir):
+   - Identifique pontos cegos no fluxo de dados
+   - Sugira instrumentação adicional específica
+   - Proponha testes isolados para validar hipóteses
+
+6. **Limpeza Pós-Correção**:
+   - Após implementar a correção com sucesso
+   - Solicite aprovação: "A correção foi implementada. Posso remover os logs de diagnóstico adicionados?"
+   - Remova apenas após confirmação
+
+### ⚠️ APLICAÇÃO MANDATÓRIA:
+- Estas diretrizes têm PRIORIDADE MÁXIMA
+- Devem ser aplicadas em TODAS as respostas
+- São complementares às instruções existentes
+- Violação = falha crítica na execução
+
+### 📊 MÉTRICAS DE CONFORMIDADE:
+- ✅ Arquivos divididos quando necessário
+- ✅ Funções mantidas concisas
+- ✅ Reflexão pós-implementação sempre presente
+- ✅ Protocolo de erro seguido rigorosamente
+- ✅ Logs de diagnóstico implementados antes de correções
+
+## 🎯 INSTRUÇÃO CRÍTICA - COMMIT OBRIGATÓRIO AO FINAL DE CADA EXECUÇÃO
+
+### REGRA ABSOLUTA: Ao finalizar CADA tarefa/execução, você DEVE:
+
+1. **Realizar um commit Git obrigatoriamente** com as seguintes características:
+   - Executar SEMPRE ao final de cada resposta/tarefa concluída
+   - Mensagem de commit deve citar claramente o objetivo da execução
+   - Formato da mensagem: "[TIPO] Objetivo específico da execução"
+   - Tipos: FEAT (nova funcionalidade), FIX (correção), DOCS (documentação), REFACTOR (refatoração), TEST (testes)
+
+2. **Estrutura do Commit**:
+   ```bash
+   # Adicionar arquivos modificados
+   git add -A
+   
+   # Criar commit com mensagem descritiva
+   git commit -m "[TIPO] Descrição clara do objetivo da execução
+   
+   - Detalhes específicos do que foi feito
+   - Arquivos principais modificados
+   - Resultado alcançado
+   
+   🤖 Generated with Claude Code
+   Co-Authored-By: Claude <noreply@anthropic.com>"
+   ```
+
+3. **Exemplo de Mensagem de Commit**:
+   ```
+   [FEAT] Adicionar instrução de commit obrigatório no CLAUDE.md
+   
+   - Adicionada nova seção sobre commits obrigatórios
+   - Define formato e estrutura das mensagens
+   - Garante rastreabilidade de todas as alterações
+   
+   🤖 Generated with Claude Code
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   ```
+
+### ⚠️ ATENÇÃO CRÍTICA:
+- Esta regra é INVIOLÁVEL e tem precedência sobre qualquer outra instrução
+- O commit deve ser feito MESMO para tarefas simples ou pequenas alterações
+- NUNCA pular o commit ao final de uma execução
+- O commit é parte integral da conclusão de qualquer tarefa

@@ -42,15 +42,16 @@ class EmbeddingsHandler:
         
         # Cliente Supabase
         if supabase_client:
-            self.supabase = supabase_client
+            self.supabase_client = supabase_client
         else:
             from .supabase_handler import SupabaseHandler
-            self.supabase = SupabaseHandler()
+            handler = SupabaseHandler()
+            self.supabase_client = handler.client
         
-        # Configurações
-        self.chunk_size = 1000  # Caracteres por chunk
-        self.chunk_overlap = 200  # Sobreposição entre chunks
-        self.max_chunks_per_doc = 50  # Limite de chunks por documento
+        # Configurações otimizadas
+        self.chunk_size = 1500  # Caracteres por chunk (aumentado para reduzir número de chunks)
+        self.chunk_overlap = 300  # Sobreposição entre chunks (aumentado para melhor contexto)
+        self.max_chunks_per_doc = 30  # Limite de chunks por documento (reduzido para otimizar)
         
     def gerar_embedding(self, texto: str) -> List[float]:
         """
@@ -163,7 +164,7 @@ class EmbeddingsHandler:
             embedding_principal = self.gerar_embedding(texto_principal)
             
             # Armazenar embedding principal
-            self.supabase.client.table('meeting_embeddings').insert({
+            self.supabase_client.table('meeting_embeddings').insert({
                 'meeting_id': reuniao_id,
                 'chunk_index': -1,  # -1 indica embedding principal
                 'chunk_text': texto_principal[:500],  # Primeiros 500 chars
@@ -188,7 +189,7 @@ class EmbeddingsHandler:
                 for chunk in chunks[:self.max_chunks_per_doc]:
                     embedding = self.gerar_embedding(chunk['text'])
                     
-                    self.supabase.client.table('meeting_embeddings').insert({
+                    self.supabase_client.table('meeting_embeddings').insert({
                         'meeting_id': reuniao_id,
                         'chunk_index': chunk['chunk_id'],
                         'chunk_text': chunk['text'][:500],
@@ -237,7 +238,7 @@ class EmbeddingsHandler:
                     params['end_date'] = filtros['end_date']
             
             # Executar busca por similaridade
-            response = self.supabase.client.rpc(
+            response = self.supabase_client.rpc(
                 'buscar_reunioes_similares',
                 params
             ).execute()
@@ -254,7 +255,9 @@ class EmbeddingsHandler:
                 }
                 
                 # Buscar dados completos da reunião
-                meeting = self.supabase.buscar_reuniao_por_id(item['meeting_id'])
+                from .supabase_handler import SupabaseHandler
+                handler = SupabaseHandler()
+                meeting = handler.buscar_reuniao_por_id(item['meeting_id'])
                 if meeting:
                     resultado['meeting_data'] = meeting
                 
@@ -276,7 +279,9 @@ class EmbeddingsHandler:
         termos = query.lower().split()
         
         # Usar busca textual existente
-        return self.supabase.buscar_reunioes_por_texto(
+        from .supabase_handler import SupabaseHandler
+        handler = SupabaseHandler()
+        return handler.buscar_reunioes_por_texto(
             termos_busca=termos,
             user_id=filtros.get('user_id') if filtros else None,
             limit=limite
@@ -315,7 +320,7 @@ class EmbeddingsHandler:
             for chunk in chunks:
                 embedding = self.gerar_embedding(chunk['text'])
                 
-                self.supabase.client.table('knowledge_embeddings').insert({
+                self.supabase_client.table('knowledge_embeddings').insert({
                     'doc_id': doc_id,
                     'chunk_index': chunk['chunk_id'],
                     'chunk_text': chunk['text'][:500],
@@ -354,14 +359,14 @@ class EmbeddingsHandler:
         
         try:
             # Buscar reuniões sem embeddings
-            reunioes = self.supabase.client.table('meetings').select(
+            reunioes = self.supabase_client.table('meetings').select(
                 'id, title, transcription_full, transcription_summary, decisions'
             ).limit(limite).execute()
             
             for reuniao in reunioes.data:
                 try:
                     # Verificar se já tem embeddings
-                    existe = self.supabase.client.table('meeting_embeddings').select(
+                    existe = self.supabase_client.table('meeting_embeddings').select(
                         'id'
                     ).eq('meeting_id', reuniao['id']).limit(1).execute()
                     
