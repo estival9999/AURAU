@@ -14,14 +14,20 @@ if os.getenv("OPENAI_API_KEY"):
 else:
     from .agente_base_simulado import AgenteBaseSimulado as AgenteBase
 
+# Importar o novo sistema de templates
+from .prompt_template import PromptTemplate, TomResposta
+
 
 class TipoIntencao(Enum):
-    """Tipos de intenção que o orquestrador pode identificar"""
-    CONSULTA = "CONSULTA"
-    BRAINSTORM = "BRAINSTORM"
-    ANALISE = "ANALISE"
-    GERAL = "GERAL"
-    MULTIPLA = "MULTIPLA"
+    """Tipos de intenção que o orquestrador pode identificar.
+    
+    Cada tipo direciona para um agente especializado diferente.
+    """
+    CONSULTA = "CONSULTA"      # Busca de informações
+    BRAINSTORM = "BRAINSTORM"  # Geração de ideias
+    ANALISE = "ANALISE"        # Análise de dados
+    GERAL = "GERAL"            # Consultas gerais
+    MULTIPLA = "MULTIPLA"      # Múltiplas intenções
 
 
 class AgenteOrquestrador(AgenteBase):
@@ -41,73 +47,87 @@ class AgenteOrquestrador(AgenteBase):
             descricao="Agente maestro que coordena e direciona as interações no sistema"
         )
         
-        # Mapa de agentes disponíveis
+        # ===== CONFIGURAÇÃO DO TEMPLATE =====
+        # Usa o novo sistema de templates padronizados
+        self.config_prompt = PromptTemplate.criar_config_orquestrador()
+        
+        # ===== MAPA DE AGENTES ESPECIALIZADOS =====
+        # Mapeia cada tipo de intenção para o nome do agente responsável
         self.mapa_agentes = {
             TipoIntencao.CONSULTA: "Consultor Inteligente AURALIS",
             TipoIntencao.BRAINSTORM: "Agente Criativo AURALIS",
             TipoIntencao.ANALISE: "Analista AURALIS"
         }
         
-        # Referências diretas aos agentes (serão definidas pelo sistema)
+        # ===== REFERÊNCIAS AOS AGENTES =====
+        # Referências diretas aos agentes especializados
+        # Serão definidas pelo sistema através do método definir_agentes()
         self.agente_consulta = None
         self.agente_brainstorm = None
         self.agente_analise = None
         
-        # Palavras-chave para identificação de intenções
+        # ===== PALAVRAS-CHAVE PARA IDENTIFICAÇÃO =====
+        # Dicionário expandido com sinônimos e variações
         self.palavras_chave = {
             TipoIntencao.CONSULTA: [
-                "buscar", "encontrar", "procurar", "localizar", "quando", "onde",
-                "quem", "qual", "reunião", "documento", "histórico", "informação",
-                "listar", "mostrar", "exibir", "consultar", "verificar"
+                # Verbos de busca
+                "buscar", "encontrar", "procurar", "localizar", "pesquisar", "consultar",
+                "verificar", "checar", "conferir", "identificar", "descobrir",
+                # Pronomes interrogativos
+                "quando", "onde", "quem", "qual", "quais", "quanto", "como", "porque",
+                # Substantivos relacionados
+                "reunião", "reuniões", "meeting", "documento", "documentos", "arquivo",
+                "histórico", "informação", "informações", "dado", "dados", "registro",
+                # Ações de visualização
+                "listar", "mostrar", "exibir", "apresentar", "ver", "visualizar",
+                # Contexto temporal
+                "última", "último", "anterior", "passada", "recente", "hoje", "ontem",
+                "semana", "mês", "participou", "participaram", "decidiu", "decidido"
             ],
             TipoIntencao.BRAINSTORM: [
-                "ideia", "ideias", "sugestão", "sugerir", "propor", "criar",
-                "inovar", "solução", "alternativa", "criativo", "brainstorm",
-                "pensar", "imaginar", "possibilidade", "opção", "melhorar"
+                # Substantivos criativos
+                "ideia", "ideias", "sugestão", "sugestões", "proposta", "propostas",
+                "solução", "soluções", "alternativa", "alternativas", "opção", "opções",
+                # Verbos de criação
+                "criar", "gerar", "produzir", "desenvolver", "elaborar", "pensar",
+                "imaginar", "inovar", "inventar", "conceber", "formular",
+                # Termos de melhoria
+                "melhorar", "aprimorar", "otimizar", "aperfeiçoar", "evoluir",
+                "transformar", "revolucionar", "mudar", "modificar",
+                # Termos explícitos
+                "brainstorm", "brainstorming", "criativo", "criatividade", "inovação",
+                "inovador", "fora da caixa", "diferente", "novo", "original"
             ],
             TipoIntencao.ANALISE: [
-                "analisar", "análise", "tendência", "padrão", "comparar",
-                "estatística", "métrica", "indicador", "avaliar", "revisar",
-                "examinar", "investigar", "estudar", "relatório", "dashboard"
+                # Verbos analíticos
+                "analisar", "examinar", "investigar", "estudar", "avaliar", "revisar",
+                "comparar", "contrastar", "correlacionar", "diagnosticar",
+                # Substantivos analíticos
+                "análise", "tendência", "tendências", "padrão", "padrões", "comportamento",
+                "estatística", "estatísticas", "métrica", "métricas", "indicador",
+                "indicadores", "kpi", "dashboard", "relatório", "gráfico",
+                # Termos de insights
+                "insight", "insights", "conclusão", "conclusões", "descoberta",
+                "observação", "interpretação", "entendimento", "compreensão"
             ]
         }
         
-        # Configurações
-        self.temperatura = 0.3  # Mais determinístico para orquestração
+        # ===== CONFIGURAÇÕES DO MODELO =====
+        # Usa configurações do template
+        self.temperatura = self.config_prompt.temperatura
         
     def get_prompt_sistema(self) -> str:
         """
         Define o prompt do sistema para o agente orquestrador.
         
         Returns:
-            str: Prompt do sistema
+            str: Prompt do sistema usando o template padronizado
         """
-        return """Você é o Orquestrador do sistema AURALIS, um assistente inteligente para gestão de reuniões e conhecimento corporativo.
-
-Seu papel é:
-1. Analisar as perguntas dos usuários e identificar suas intenções
-2. Determinar qual tipo de resposta é mais apropriada:
-   - CONSULTA: Para buscar informações em reuniões ou base de conhecimento
-   - BRAINSTORM: Para gerar ideias e soluções criativas
-   - ANÁLISE: Para analisar padrões e tendências
-   - GERAL: Para respostas diretas que você pode fornecer
-
-3. Formatar as respostas de forma clara e profissional
-4. Manter o contexto da conversa
-5. Coordenar múltiplos agentes quando necessário
-
-Diretrizes importantes:
-- Sempre identifique claramente a intenção antes de processar
-- Se uma pergunta tiver múltiplas intenções, processe cada uma separadamente
-- Mantenha um tom profissional mas amigável
-- Use formatação clara (bullets, numeração) quando apropriado
-- Sempre responda em português brasileiro
-- Se não tiver certeza da intenção, peça esclarecimentos
-
-Formato de resposta quando delegar:
-- Indique claramente qual agente está sendo consultado
-- Apresente a resposta de forma integrada
-- Adicione contexto ou explicações quando necessário"""
+        # Usa o novo sistema de templates com contexto atual
+        return PromptTemplate.gerar_prompt_contextualizado(
+            self.config_prompt,
+            self.contexto_atual
+        )
     
     def identificar_intencao(self, mensagem: str) -> Tuple[TipoIntencao, float]:
         """
@@ -121,21 +141,24 @@ Formato de resposta quando delegar:
         """
         mensagem_lower = mensagem.lower()
         
-        # Calcular scores para cada tipo de intenção
+        # ===== CÁLCULO DE SCORES =====
+        # Calcula pontos para cada tipo de intenção baseado nas palavras-chave encontradas
         scores = {}
         
         for tipo_intencao, palavras in self.palavras_chave.items():
+            # Conta quantas palavras-chave estão presentes na mensagem
             score = sum(1 for palavra in palavras if palavra in mensagem_lower)
             scores[tipo_intencao] = score
         
         # Identificar intenção com maior score
         max_score = max(scores.values())
         
-        # Se nenhuma palavra-chave foi encontrada, é uma consulta geral
+        # Se nenhuma palavra-chave foi encontrada, classifica como consulta geral
         if max_score == 0:
             return TipoIntencao.GERAL, 0.5
         
-        # Verificar se há múltiplas intenções com scores altos
+        # ===== DETECÇÃO DE MÚLTIPLAS INTENÇÕES =====
+        # Verifica se há múltiplas intenções com scores próximos (70% do máximo)
         intencoes_altas = [t for t, s in scores.items() if s >= max_score * 0.7 and s > 0]
         
         if len(intencoes_altas) > 1:
@@ -143,7 +166,8 @@ Formato de resposta quando delegar:
         
         # Retornar a intenção com maior score
         intencao_principal = max(scores, key=scores.get)
-        confianca = min(scores[intencao_principal] / 5.0, 1.0)  # Normalizar confiança
+        # Normaliza a confiança entre 0 e 1 (máximo de 5 palavras-chave)
+        confianca = min(scores[intencao_principal] / 5.0, 1.0)
         
         return intencao_principal, confianca
     
@@ -166,6 +190,89 @@ Formato de resposta quando delegar:
         
         return intencoes_encontradas if intencoes_encontradas else [TipoIntencao.GERAL]
     
+    def _verificar_casos_especiais(self, mensagem: str) -> Optional[str]:
+        """
+        Verifica casos especiais e erros comuns antes do processamento.
+        
+        Args:
+            mensagem: Mensagem do usuário
+            
+        Returns:
+            Optional[str]: Resposta de erro se aplicável, None caso contrário
+        """
+        # ===== ENTRADA VAZIA =====
+        if not mensagem or not mensagem.strip():
+            return "Percebi que sua mensagem está vazia. Como posso ajudar você hoje? Você pode perguntar sobre reuniões passadas, pedir ideias criativas ou solicitar análises."
+        
+        # ===== ENTRADA MUITO CURTA (possível comando incompleto) =====
+        mensagem_limpa = mensagem.strip().lower()
+        if len(mensagem_limpa) < 3:
+            comandos_sugeridos = {
+                "?": "ajuda",
+                "h": "histórico", 
+                "b": "buscar",
+                "i": "ideias"
+            }
+            
+            if mensagem_limpa in comandos_sugeridos:
+                return f"Você quis dizer '{comandos_sugeridos[mensagem_limpa]}'? Digite a palavra completa para eu entender melhor."
+            
+            return "Sua mensagem é muito curta. Poderia elaborar um pouco mais? Por exemplo: 'Buscar reuniões sobre vendas' ou 'Ideias para melhorar produtividade'."
+        
+        # ===== ENTRADA MUITO LONGA =====
+        if len(mensagem) > 1000:
+            return ("Sua mensagem é bastante detalhada. Vou processar os pontos principais. "
+                   "Para melhores resultados, tente dividir solicitações complexas em partes menores.")
+        
+        # ===== COMANDOS DE AJUDA =====
+        if mensagem_limpa in ["ajuda", "help", "?", "o que você faz", "o que voce faz", "comandos"]:
+            return self._gerar_mensagem_ajuda()
+        
+        # ===== SAUDAÇÕES =====
+        saudacoes = ["oi", "olá", "ola", "bom dia", "boa tarde", "boa noite", "hey", "ei"]
+        if mensagem_limpa in saudacoes:
+            return ("Olá! 👋 Sou o Orquestrador do sistema AURALIS. "
+                   "Como posso ajudar você hoje? Posso buscar informações de reuniões, "
+                   "gerar ideias criativas ou analisar dados para você.")
+        
+        return None  # Nenhum caso especial detectado
+    
+    def _gerar_mensagem_ajuda(self) -> str:
+        """
+        Gera mensagem de ajuda detalhada.
+        
+        Returns:
+            str: Mensagem de ajuda formatada
+        """
+        return """🤖 **Bem-vindo ao Sistema AURALIS!**
+
+Sou o Orquestrador e posso ajudar você com:
+
+📅 **Consultas e Buscas:**
+• "Encontre reuniões sobre [tópico]"
+• "Quem participou da reunião de [data]?"
+• "Quais decisões foram tomadas sobre [projeto]?"
+• "Mostre documentos relacionados a [assunto]"
+
+💡 **Geração de Ideias (Brainstorm):**
+• "Preciso de ideias para [desafio]"
+• "Como posso melhorar [processo]?"
+• "Sugestões criativas para [objetivo]"
+• "Alternativas para resolver [problema]"
+
+📊 **Análises e Insights:**
+• "Analise as tendências de [métrica]"
+• "Compare resultados de [período]"
+• "Identifique padrões em [dados]"
+• "Gere relatório sobre [tópico]"
+
+💬 **Dicas para melhores resultados:**
+• Seja específico: inclua nomes, datas ou projetos
+• Para múltiplas perguntas, separe claramente cada uma
+• Use palavras-chave relevantes ao seu contexto
+
+Como posso ajudar você agora?"""
+    
     def processar_mensagem(self, mensagem: str, contexto: Dict[str, Any] = None) -> str:
         """
         Processa a mensagem do usuário e orquestra a resposta.
@@ -181,15 +288,21 @@ Formato de resposta quando delegar:
         if contexto:
             self.atualizar_contexto(contexto)
         
+        # ===== VALIDAÇÕES E CASOS ESPECIAIS =====
+        # Verifica casos de erro antes de processar
+        resposta_erro = self._verificar_casos_especiais(mensagem)
+        if resposta_erro:
+            return resposta_erro
+        
         # Identificar intenção
         intencao, confianca = self.identificar_intencao(mensagem)
         
-        # Log para debug
+        # Log para depuração - mostra a intenção identificada
         print(f"[ORQUESTRADOR] Intenção identificada: {intencao.value} (confiança: {confianca:.2f})")
         
-        # Processar baseado na intenção
+        # ===== PROCESSAMENTO BASEADO NA INTENÇÃO =====
         if intencao == TipoIntencao.MULTIPLA:
-            # Processar múltiplas intenções
+            # Identifica e processa cada intenção separadamente
             intencoes = self.identificar_multiplas_intencoes(mensagem)
             resposta = self._processar_multiplas_intencoes(mensagem, intencoes, contexto)
             
@@ -221,18 +334,20 @@ Formato de resposta quando delegar:
         """
         respostas = []
         
-        # Introdução
+        # Mensagem introdutória para o usuário
         respostas.append("Identifiquei múltiplos aspectos na sua solicitação. Vou abordar cada um:\n")
         
-        # Processar cada intenção
+        # ===== PROCESSAMENTO DE CADA INTENÇÃO =====
         for i, intencao in enumerate(intencoes, 1):
+            # Pula intenções gerais (já processadas)
             if intencao == TipoIntencao.GERAL:
                 continue
                 
+            # Adiciona subtítulo formatado para cada seção
             subtitulo = f"\n**{i}. {self._get_titulo_intencao(intencao)}**\n"
             respostas.append(subtitulo)
             
-            # Delegar para agente apropriado
+            # Delega para o agente especializado apropriado
             resposta_agente = self._delegar_para_agente(mensagem, intencao, contexto)
             respostas.append(resposta_agente)
         
@@ -251,7 +366,8 @@ Formato de resposta quando delegar:
         Returns:
             str: Resposta do agente especializado
         """
-        # Verificar se temos referência direta ao agente
+        # ===== DELEGAÇÃO PARA AGENTES ESPECIALIZADOS =====
+        # Verifica se temos referência direta ao agente apropriado
         if intencao == TipoIntencao.CONSULTA and self.agente_consulta:
             return self.agente_consulta.processar_mensagem(mensagem, contexto)
             
@@ -259,12 +375,12 @@ Formato de resposta quando delegar:
             return self.agente_brainstorm.processar_mensagem(mensagem, contexto)
             
         elif intencao == TipoIntencao.ANALISE and self.agente_analise:
-            # Se não temos agente de análise, usar consulta
+            # Se não temos agente de análise específico, usa o de consulta
             agente = self.agente_analise or self.agente_consulta
             if agente:
                 return agente.processar_mensagem(mensagem, contexto)
         
-        # Fallback: processar localmente
+        # Fallback: se não há agente disponível, processa localmente
         return self._processar_localmente(mensagem, intencao, contexto)
     
     def _processar_localmente(self, mensagem: str, intencao: TipoIntencao, 
@@ -280,7 +396,7 @@ Formato de resposta quando delegar:
         Returns:
             str: Resposta processada localmente
         """
-        # Preparar prompt com contexto
+        # Prepara prompt específico para processamento local
         prompt = f"""Como Orquestrador do AURALIS, processe esta solicitação de tipo {intencao.value}:
 
 Mensagem do usuário: {mensagem}
@@ -290,7 +406,7 @@ Contexto disponível:
 
 Forneça uma resposta apropriada, clara e profissional."""
         
-        # Obter resposta do LLM
+        # Chama o modelo de linguagem para processar a solicitação
         resposta = self.chamar_llm(prompt)
         
         return resposta
@@ -393,32 +509,37 @@ Formato profissional e conciso."""
             "analises": {}
         }
         
-        # Consultar informações existentes
+        # ===== FASE 1: CONSULTA DE INFORMAÇÕES =====
+        # Busca todas as informações existentes sobre o tópico
         if self.agente_consulta:
             resultados["analises"]["informacoes"] = self.agente_consulta.processar_mensagem(
                 f"Buscar todas as informações sobre {topico}",
                 self.contexto_atual
             )
         
-        # Gerar ideias criativas
+        # ===== FASE 2: GERAÇÃO DE IDEIAS =====
+        # Solicita ideias criativas e inovadoras sobre o tópico
         if self.agente_brainstorm:
             resultados["analises"]["ideias"] = self.agente_brainstorm.processar_mensagem(
                 f"Gerar ideias criativas para {topico}",
                 self.contexto_atual
             )
         
-        # Análise de dados (se disponível)
+        # ===== FASE 3: ANÁLISE DE DADOS =====
+        # Analisa padrões, tendências e insights sobre o tópico
         if self.agente_analise:
             resultados["analises"]["analise"] = self.agente_analise.processar_mensagem(
                 f"Analisar padrões e tendências relacionados a {topico}",
                 self.contexto_atual
             )
         
-        # Gerar resumo executivo
+        # ===== FASE 4: CONSOLIDAÇÃO =====
+        # Gera um resumo executivo consolidando todas as análises
         resultados["resumo_executivo"] = self.gerar_resumo_executivo(topico, resultados["analises"])
         
         return resultados
     
     def __repr__(self):
+        # Conta quantos agentes especializados estão conectados
         agentes_conectados = sum(1 for a in [self.agente_consulta, self.agente_brainstorm, self.agente_analise] if a)
         return f"AgenteOrquestrador(agentes_conectados={agentes_conectados})"

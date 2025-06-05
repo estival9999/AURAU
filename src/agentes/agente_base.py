@@ -57,16 +57,17 @@ class AgenteBase(ABC):
         self._inicializar_openai()
         
     def _inicializar_openai(self):
-        """Inicializa o cliente OpenAI se a chave estiver disponível"""
+        """Inicializa o cliente OpenAI se a chave estiver disponível."""
+        # Busca a chave da API nas variáveis de ambiente
         api_key = os.getenv("OPENAI_API_KEY")
         if api_key:
             try:
                 from openai import OpenAI
                 self.openai_client = OpenAI(api_key=api_key)
             except ImportError:
-                print(f"[{self.nome}] OpenAI não instalado. Usando modo simulado.")
+                raise RuntimeError(f"[{self.nome}] Biblioteca OpenAI não instalada. Execute: pip install openai")
             except Exception as e:
-                print(f"[{self.nome}] Erro ao inicializar OpenAI: {str(e)}")
+                raise RuntimeError(f"[{self.nome}] Erro ao inicializar OpenAI: {str(e)}")
     
     @abstractmethod
     def get_prompt_sistema(self) -> str:
@@ -103,11 +104,12 @@ class AgenteBase(ABC):
         Returns:
             str: Resposta do modelo
         """
+        # APENAS OpenAI - sem fallbacks locais
         if not self.openai_client:
-            return self._resposta_simulada(mensagem)
+            raise RuntimeError("Sistema requer OpenAI configurado. Verifique OPENAI_API_KEY no .env")
         
         try:
-            # Preparar mensagens
+            # Preparar mensagens para enviar ao modelo
             messages = [{"role": "system", "content": self.get_prompt_sistema()}]
             
             # Adicionar histórico se fornecido
@@ -118,10 +120,10 @@ class AgenteBase(ABC):
                         "content": msg.get("content", "")
                     })
             
-            # Adicionar mensagem atual
+            # Adicionar mensagem atual do usuário
             messages.append({"role": "user", "content": mensagem})
             
-            # Fazer chamada para OpenAI
+            # Fazer chamada para a API da OpenAI
             response = self.openai_client.chat.completions.create(
                 model=self.modelo,
                 messages=messages,
@@ -132,20 +134,11 @@ class AgenteBase(ABC):
             return response.choices[0].message.content
             
         except Exception as e:
-            print(f"[{self.nome}] Erro ao chamar LLM: {str(e)}")
-            return self._resposta_simulada(mensagem)
+            erro_msg = f"Erro ao chamar OpenAI: {str(e)}"
+            print(f"[{self.nome}] {erro_msg}")
+            raise RuntimeError(erro_msg)
     
-    def _resposta_simulada(self, mensagem: str) -> str:
-        """
-        Gera uma resposta simulada quando não há acesso ao LLM.
-        
-        Args:
-            mensagem: Mensagem recebida
-            
-        Returns:
-            str: Resposta simulada
-        """
-        return f"[MODO SIMULADO - {self.nome}] Recebi sua mensagem: '{mensagem}'. Em produção, processaria com IA."
+    # REMOVIDO _resposta_simulada - APENAS OpenAI, sem simulações
     
     def adicionar_ao_historico(self, mensagem: str, resposta: str):
         """
@@ -159,6 +152,7 @@ class AgenteBase(ABC):
         self.historico_conversas.append(Mensagem("assistant", resposta))
         
         # Limitar tamanho do histórico para economizar memória
+        # Mantém apenas as últimas 50 mensagens quando ultrapassa 100
         if len(self.historico_conversas) > 100:
             self.historico_conversas = self.historico_conversas[-50:]
     
@@ -178,8 +172,10 @@ class AgenteBase(ABC):
         if not contexto:
             return ""
         
+        # Cria lista de linhas formatadas com o contexto
         linhas = ["Contexto adicional:"]
         for chave, valor in contexto.items():
+            # Converte estruturas complexas para JSON legível
             if isinstance(valor, (list, dict)):
                 valor_str = json.dumps(valor, ensure_ascii=False, indent=2)
             else:
@@ -202,35 +198,39 @@ class AgenteBase(ABC):
         informacoes = []
         texto_lower = texto.lower()
         
+        # ===== EXTRAÇÃO DE DATAS =====
         if tipo_info == "datas":
-            # Padrões simples para datas
+            # Padrões simples para datas em diferentes formatos
             import re
             padroes = [
-                r'\d{1,2}/\d{1,2}/\d{4}',
-                r'\d{1,2} de \w+ de \d{4}',
-                r'\d{4}-\d{2}-\d{2}'
+                r'\d{1,2}/\d{1,2}/\d{4}',      # Formato DD/MM/AAAA
+                r'\d{1,2} de \w+ de \d{4}',     # Formato por extenso
+                r'\d{4}-\d{2}-\d{2}'           # Formato ISO
             ]
             for padrao in padroes:
                 matches = re.findall(padrao, texto)
                 informacoes.extend(matches)
                 
+        # ===== EXTRAÇÃO DE DECISÕES =====
         elif tipo_info == "decisoes":
-            # Procurar por palavras-chave de decisão
+            # Procurar por palavras-chave que indicam decisões tomadas
             palavras_decisao = ["decidido", "aprovado", "definido", "acordado", "determinado"]
             linhas = texto.split('.')
             for linha in linhas:
                 if any(palavra in linha.lower() for palavra in palavras_decisao):
                     informacoes.append(linha.strip())
                     
+        # ===== EXTRAÇÃO DE PARTICIPANTES =====
         elif tipo_info == "participantes":
-            # Extrair nomes próprios (heurística simples)
+            # Extrair nomes próprios usando heurística simples
             import re
-            # Padrão para nomes próprios (palavras capitalizadas)
+            # Padrão para nomes próprios (duas palavras capitalizadas)
             padrao_nome = r'\b[A-Z][a-z]+ [A-Z][a-z]+\b'
             matches = re.findall(padrao_nome, texto)
             informacoes.extend(matches)
         
-        return list(set(informacoes))  # Remover duplicatas
+        # Remove duplicatas mantendo apenas valores únicos
+        return list(set(informacoes))
     
     def atualizar_contexto(self, novo_contexto: Dict[str, Any]):
         """
@@ -242,7 +242,7 @@ class AgenteBase(ABC):
         self.contexto_atual.update(novo_contexto)
     
     def limpar_historico(self):
-        """Limpa o histórico de conversas"""
+        """Limpa completamente o histórico de conversas do agente."""
         self.historico_conversas = []
     
     def obter_resumo_historico(self, num_mensagens: int = 10) -> str:
@@ -255,14 +255,18 @@ class AgenteBase(ABC):
         Returns:
             str: Resumo formatado do histórico
         """
+        # Verifica se há histórico disponível
         if not self.historico_conversas:
             return "Sem histórico de conversas."
         
+        # Pega apenas as mensagens mais recentes
         mensagens_recentes = self.historico_conversas[-num_mensagens:]
         resumo = []
         
+        # Formata cada mensagem com identificação do remetente
         for msg in mensagens_recentes:
             role = "Usuário" if msg.role == "user" else self.nome
+            # Limita o conteúdo a 100 caracteres para o resumo
             resumo.append(f"{role}: {msg.content[:100]}...")
         
         return "\n".join(resumo)
@@ -285,6 +289,7 @@ class AgenteBase(ABC):
             },
             "historico": [asdict(msg) for msg in self.historico_conversas],
             "contexto_atual": self.contexto_atual,
+            # Estatísticas do histórico de conversas
             "estatisticas": {
                 "total_mensagens": len(self.historico_conversas),
                 "mensagens_usuario": len([m for m in self.historico_conversas if m.role == "user"]),

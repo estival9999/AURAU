@@ -15,10 +15,24 @@ from .sistema_agentes import (
     processar_pergunta_simples
 )
 
-# Importar agentes individuais
-from .agente_orquestrador import AgenteOrquestrador
-from .agente_consulta_inteligente import AgenteConsultaInteligente
-from .agente_brainstorm import AgenteBrainstorm
+# Importar agentes individuais (com tratamento de erros)
+try:
+    from .agente_orquestrador import AgenteOrquestrador
+except ImportError as e:
+    print(f"[AVISO] Erro ao importar AgenteOrquestrador: {e}")
+    AgenteOrquestrador = None
+
+try:
+    from .agente_consulta_inteligente import AgenteConsultaInteligente
+except ImportError as e:
+    print(f"[AVISO] Erro ao importar AgenteConsultaInteligente: {e}")
+    AgenteConsultaInteligente = None
+
+try:
+    from .agente_brainstorm import AgenteBrainstorm
+except ImportError as e:
+    print(f"[AVISO] Erro ao importar AgenteBrainstorm: {e}")
+    AgenteBrainstorm = None
 
 # Importar sistema de comunicação
 from .comunicacao_agentes import (
@@ -38,11 +52,16 @@ from .otimizador import (
 )
 
 # Importar classes base
-from .agente_base import AgenteBase, Mensagem
-from .agente_base_simulado import AgenteBaseSimulado
+try:
+    from .agente_base import AgenteBase, Mensagem
+except ImportError as e:
+    print(f"[AVISO] Erro ao importar AgenteBase: {e}")
+    AgenteBase = None
+    Mensagem = None
 
-# Importar mock para testes
-from .openai_mock import MockOpenAI, criar_cliente_mock
+# Removido agente_base_simulado conforme instruções - APENAS Supabase
+
+# Mock removido conforme instruções
 
 # Definir o que é exportado quando se faz "from agentes import *"
 __all__ = [
@@ -71,12 +90,9 @@ __all__ = [
     
     # Classes base
     "AgenteBase",
-    "AgenteBaseSimulado",
     "Mensagem",
     
-    # Mock
-    "MockOpenAI",
-    "criar_cliente_mock"
+
 ]
 
 

@@ -15,6 +15,18 @@ if os.getenv("OPENAI_API_KEY"):
 else:
     from .agente_base_simulado import AgenteBaseSimulado as AgenteBase
 
+# Importar o novo sistema de templates
+from .prompt_template import PromptTemplate, TomResposta
+
+# Importar handlers do Supabase
+try:
+    from ..database.supabase_handler import SupabaseHandler
+    from ..database.embeddings_handler import EmbeddingsHandler
+    HAS_SUPABASE = True
+except ImportError:
+    HAS_SUPABASE = False
+    raise RuntimeError("Sistema requer Supabase e handlers configurados")
+
 
 class AgenteConsultaInteligente(AgenteBase):
     """
@@ -28,17 +40,43 @@ class AgenteConsultaInteligente(AgenteBase):
     - Calcular relevância e ranquear resultados
     """
     
-    def __init__(self):
+    def __init__(self, supabase_client=None):
         super().__init__(
             nome="Consultor Inteligente AURALIS",
             descricao="Especialista em busca semântica e recuperação de informações relevantes"
         )
         
-        # Configurações específicas
-        self.temperatura = 0.2  # Mais determinístico para buscas precisas
-        self.max_resultados = 10
+        # ===== CONFIGURAÇÃO DO TEMPLATE =====
+        # Usa o novo sistema de templates padronizados
+        self.config_prompt = PromptTemplate.criar_config_consulta()
         
-        # Sinônimos para expansão de busca
+        # ===== CONFIGURAÇÕES ESPECÍFICAS =====
+        # Usa configurações do template
+        self.temperatura = self.config_prompt.temperatura
+        self.max_resultados = 10  # Limite de resultados por busca
+        
+        # ===== CONFIGURAÇÃO DO SUPABASE (OBRIGATÓRIO) =====
+        # APENAS Supabase - sem fallbacks
+        if supabase_client:
+            self.db = supabase_client
+        else:
+            try:
+                self.db = SupabaseHandler()
+                if not self.db.testar_conexao():
+                    raise RuntimeError("Falha na conexão com Supabase")
+            except Exception as e:
+                raise RuntimeError(f"Sistema requer Supabase configurado: {e}")
+        
+        # ===== CONFIGURAÇÃO DO HANDLER DE EMBEDDINGS =====
+        # Para busca semântica avançada
+        try:
+            self.embeddings_handler = EmbeddingsHandler(self.db.client)
+        except Exception as e:
+            print(f"[AVISO] Handler de embeddings não disponível: {e}")
+            self.embeddings_handler = None
+        
+        # ===== DICIONÁRIO DE SINÔNIMOS =====
+        # Usado para expandir termos de busca e melhorar resultados
         self.sinonimos = {
             "reunião": ["meeting", "encontro", "sessão", "conferência"],
             "projeto": ["project", "iniciativa", "programa", "empreendimento"],
@@ -50,109 +88,24 @@ class AgenteConsultaInteligente(AgenteBase):
             "solução": ["solution", "resolução", "resposta", "saída"]
         }
         
-        # Mock de base de dados (em produção seria Supabase/ChromaDB)
-        self.mock_reunioes = [
-            {
-                "id": "001",
-                "titulo": "Kickoff do Projeto AURALIS",
-                "data": "2024-01-15",
-                "hora": "14:00",
-                "duracao": "90 min",
-                "participantes": ["João Silva", "Maria Santos", "Pedro Oliveira", "Ana Costa"],
-                "pauta": ["Definição de escopo", "Cronograma", "Atribuição de responsabilidades"],
-                "decisoes": [
-                    "Prazo de entrega definido para 30/06/2024",
-                    "Maria Santos será a gerente do projeto",
-                    "Reuniões semanais às segundas 10h"
-                ],
-                "transcricao": "João: Vamos começar definindo o escopo do projeto AURALIS...",
-                "tags": ["kickoff", "projeto", "planejamento"]
-            },
-            {
-                "id": "002",
-                "titulo": "Revisão Sprint 1 - AURALIS",
-                "data": "2024-01-22",
-                "hora": "15:00",
-                "duracao": "60 min",
-                "participantes": ["Maria Santos", "Pedro Oliveira", "Lucas Mendes"],
-                "pauta": ["Review das entregas", "Impedimentos", "Próximos passos"],
-                "decisoes": [
-                    "Sprint aprovada com 85% das tarefas concluídas",
-                    "Necessário contratar mais um desenvolvedor",
-                    "Ajustar estimativas para próxima sprint"
-                ],
-                "transcricao": "Maria: A sprint foi produtiva, mas encontramos alguns desafios...",
-                "tags": ["sprint", "review", "agile"]
-            },
-            {
-                "id": "003",
-                "titulo": "Brainstorming - Funcionalidades IA",
-                "data": "2024-01-25",
-                "hora": "10:00",
-                "duracao": "120 min",
-                "participantes": ["Pedro Oliveira", "Ana Costa", "Carlos Tech", "João Silva"],
-                "pauta": ["Ideação de features", "Priorização", "Viabilidade técnica"],
-                "decisoes": [
-                    "Implementar busca semântica como prioridade 1",
-                    "Sistema de agentes para processamento inteligente",
-                    "Interface de voz para próxima fase"
-                ],
-                "transcricao": "Ana: Precisamos pensar em como a IA pode agregar valor...",
-                "tags": ["brainstorm", "ia", "funcionalidades", "inovação"]
-            }
-        ]
+        # ===== MODO DE OPERAÇÃO =====
+        # SEMPRE usa banco real - sem mocks
+        self.usar_banco_real = True  # Forçado para True
         
-        self.mock_documentos = [
-            {
-                "id": "doc001",
-                "titulo": "Plano de Projeto AURALIS",
-                "tipo": "documento",
-                "data_criacao": "2024-01-10",
-                "autor": "João Silva",
-                "conteudo": "Documento detalhando objetivos, escopo e metodologia do projeto...",
-                "tags": ["planejamento", "projeto", "documentação"]
-            },
-            {
-                "id": "doc002",
-                "titulo": "Arquitetura do Sistema",
-                "tipo": "documento técnico",
-                "data_criacao": "2024-01-20",
-                "autor": "Pedro Oliveira",
-                "conteudo": "Descrição da arquitetura multi-agente, componentes e integrações...",
-                "tags": ["arquitetura", "técnico", "sistema"]
-            }
-        ]
+        # REMOVIDO: Todo código mock - APENAS Supabase
     
     def get_prompt_sistema(self) -> str:
         """
         Define o prompt do sistema para o agente de consulta.
         
         Returns:
-            str: Prompt do sistema
+            str: Prompt do sistema usando o template padronizado
         """
-        return """Você é o Consultor Inteligente do sistema AURALIS, especializado em buscar e apresentar informações relevantes.
-
-Suas responsabilidades:
-1. Buscar informações precisas em reuniões passadas e documentos
-2. Correlacionar dados de múltiplas fontes
-3. Apresentar as informações de forma clara e estruturada
-4. Sempre citar as fontes (reunião, data, participante)
-5. Destacar informações mais relevantes primeiro
-
-Ao responder:
-- Seja preciso e objetivo
-- Cite sempre as fontes das informações
-- Se não encontrar informações, seja claro sobre isso
-- Sugira buscas alternativas quando apropriado
-- Use formatação para facilitar a leitura (bullets, negrito, etc.)
-
-Formato preferido de resposta:
-1. Resumo executivo (se aplicável)
-2. Informações encontradas com fontes
-3. Informações relacionadas (se relevante)
-4. Sugestões de busca adicional (se necessário)
-
-Sempre responda em português brasileiro."""
+        # Usa o novo sistema de templates com contexto atual
+        return PromptTemplate.gerar_prompt_contextualizado(
+            self.config_prompt,
+            self.contexto_atual
+        )
     
     def processar_mensagem(self, mensagem: str, contexto: Dict[str, Any] = None) -> str:
         """
@@ -169,18 +122,41 @@ Sempre responda em português brasileiro."""
         if contexto:
             self.atualizar_contexto(contexto)
         
-        # Extrair termos de busca
+        # ===== EXTRAÇÃO E EXPANSÃO DE TERMOS =====
+        # Extrai termos relevantes e expande com sinônimos
         termos = self.extrair_termos_busca(mensagem)
         termos_expandidos = self.expandir_termos(termos)
         
         print(f"[CONSULTA] Termos de busca: {termos}")
         print(f"[CONSULTA] Termos expandidos: {termos_expandidos}")
         
-        # Buscar em diferentes fontes
-        resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
-        resultados_documentos = self.buscar_em_documentos(termos_expandidos)
+        # ===== BUSCA EM MÚLTIPLAS FONTES =====
+        # Tenta busca semântica primeiro, fallback para busca textual
+        if self.embeddings_handler:
+            try:
+                # Busca semântica usando embeddings
+                print("[CONSULTA] Usando busca semântica com embeddings")
+                resultados_semanticos = self.embeddings_handler.buscar_por_similaridade(
+                    query=mensagem,
+                    limite=self.max_resultados,
+                    filtros={'user_id': self.contexto_atual.get('user_id')} if self.contexto_atual else None
+                )
+                
+                # Converter resultados semânticos para formato padrão
+                resultados_reunioes = self._converter_resultados_semanticos(resultados_semanticos)
+                resultados_documentos = []  # TODO: Implementar busca semântica em documentos
+            except Exception as e:
+                print(f"[CONSULTA] Erro na busca semântica, usando busca textual: {e}")
+                # Fallback para busca textual
+                resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
+                resultados_documentos = self.buscar_em_documentos(termos_expandidos)
+        else:
+            # Busca textual tradicional
+            resultados_reunioes = self.buscar_em_reunioes(termos_expandidos)
+            resultados_documentos = self.buscar_em_documentos(termos_expandidos)
         
-        # Consolidar e formatar resposta
+        # ===== CONSOLIDAÇÃO DOS RESULTADOS =====
+        # Formata todos os resultados em uma resposta estruturada
         resposta = self.formatar_resposta_busca(
             mensagem, 
             resultados_reunioes, 
@@ -203,7 +179,8 @@ Sempre responda em português brasileiro."""
         Returns:
             List[str]: Lista de termos para busca
         """
-        # Remover stop words comuns
+        # ===== LISTA DE STOP WORDS EM PORTUGUÊS =====
+        # Palavras comuns que não agregam valor à busca
         stop_words = {
             "o", "a", "os", "as", "de", "da", "do", "das", "dos", "em", "na", "no",
             "nas", "nos", "por", "para", "com", "sem", "sob", "sobre", "é", "são",
@@ -213,23 +190,25 @@ Sempre responda em português brasileiro."""
             "um", "uma", "uns", "umas"
         }
         
-        # Tokenizar e filtrar
+        # ===== TOKENIZAÇÃO E FILTRAGEM =====
         palavras = mensagem.lower().split()
         termos = []
         
         for palavra in palavras:
-            # Remover pontuação
+            # Remove pontuação mantendo apenas letras e números
             palavra_limpa = re.sub(r'[^\w\s]', '', palavra)
             
-            # Adicionar se não for stop word e tiver mais de 2 caracteres
+            # Adiciona termo se for válido (não é stop word e tem mais de 2 caracteres)
             if palavra_limpa and palavra_limpa not in stop_words and len(palavra_limpa) > 2:
                 termos.append(palavra_limpa)
         
-        # Identificar frases importantes (palavras consecutivas capitalizadas)
+        # ===== IDENTIFICAÇÃO DE FRASES IMPORTANTES =====
+        # Captura nomes próprios e termos compostos (ex: "Projeto AURALIS")
         frases = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*', mensagem)
         termos.extend([frase.lower() for frase in frases])
         
-        return list(set(termos))  # Remover duplicatas
+        # Remove duplicatas mantendo ordem de inserção
+        return list(set(termos))
     
     def expandir_termos(self, termos: List[str]) -> List[str]:
         """
@@ -244,15 +223,16 @@ Sempre responda em português brasileiro."""
         termos_expandidos = termos.copy()
         
         for termo in termos:
-            # Adicionar sinônimos se existirem
+            # ===== EXPANSÃO COM SINÔNIMOS =====
             if termo in self.sinonimos:
                 termos_expandidos.extend(self.sinonimos[termo])
             
-            # Adicionar variações (plural/singular simplificado)
+            # ===== VARIAÇÕES MORFOLÓGICAS SIMPLES =====
+            # Tenta criar plural/singular básico
             if termo.endswith('s'):
-                termos_expandidos.append(termo[:-1])  # Remove 's'
+                termos_expandidos.append(termo[:-1])  # Remove 's' para singular
             else:
-                termos_expandidos.append(termo + 's')  # Adiciona 's'
+                termos_expandidos.append(termo + 's')  # Adiciona 's' para plural
         
         return list(set(termos_expandidos))  # Remover duplicatas
     
@@ -273,22 +253,23 @@ Sempre responda em português brasileiro."""
         texto_completo = f"{titulo} {autor} {texto}".lower()
         relevancia = 0
         
+        # ===== CÁLCULO DE RELEVÂNCIA POR TERMO =====
         for termo in termos:
             termo_lower = termo.lower()
             
-            # Contar ocorrências
+            # Conta ocorrências do termo no texto
             ocorrencias = texto_completo.count(termo_lower)
             relevancia += ocorrencias
             
-            # Bonus se aparece no título (peso 5)
+            # Bônus se o termo aparece no título (peso 5)
             if termo_lower in titulo.lower():
                 relevancia += 5
             
-            # Bonus se é o autor (peso 3)
+            # Bônus se o termo é o nome do autor (peso 3)
             if termo_lower in autor.lower():
                 relevancia += 3
             
-            # Bonus por match exato de frase
+            # Bônus especial para correspondência exata de frases (peso 10)
             if len(termo.split()) > 1 and termo_lower in texto_completo:
                 relevancia += 10
         
@@ -304,37 +285,56 @@ Sempre responda em português brasileiro."""
         Returns:
             List[Dict]: Reuniões encontradas com relevância
         """
-        resultados = []
+        # ===== BUSCA APENAS NO BANCO REAL - SEM FALLBACKS =====
+        if not self.db:
+            raise RuntimeError("Sistema requer conexão com Supabase")
         
-        for reuniao in self.mock_reunioes:
-            # Criar texto completo para busca
-            texto_busca = f"{reuniao['titulo']} {' '.join(reuniao['participantes'])} "
-            texto_busca += f"{' '.join(reuniao['pauta'])} {' '.join(reuniao['decisoes'])} "
-            texto_busca += f"{reuniao['transcricao']} {' '.join(reuniao['tags'])}"
+        try:
+            # Obtém ID do usuário do contexto
+            user_id = self.contexto_atual.get('user_id') if self.contexto_atual else None
             
-            # Calcular relevância
-            relevancia = self.calcular_relevancia(
-                texto_busca,
-                termos,
-                reuniao['titulo'],
-                ' '.join(reuniao['participantes'])
+            # Busca usando o handler do Supabase
+            reunioes = self.db.buscar_reunioes_por_texto(
+                termos_busca=termos,
+                user_id=user_id,
+                limit=self.max_resultados
             )
             
-            if relevancia > 0:
+            # Formata resultados do banco
+            resultados = []
+            for reuniao in reunioes:
+                # Adapta formato do banco para formato esperado
+                dados_adaptados = {
+                    "id": reuniao.get('id'),
+                    "titulo": reuniao.get('title', ''),
+                    "data": reuniao.get('start_time', '')[:10] if reuniao.get('start_time') else '',
+                    "hora": reuniao.get('start_time', '')[11:16] if reuniao.get('start_time') else '',
+                    "duracao": f"{reuniao.get('duration_seconds', 0) // 60} min",
+                    "participantes": reuniao.get('participants', []),
+                    "pauta": reuniao.get('key_points', []),
+                    "decisoes": reuniao.get('decisions', []),
+                    "transcricao": reuniao.get('transcription_full', ''),
+                    "tags": []  # TODO: Extrair tags do conteúdo
+                }
+                
                 resultados.append({
                     "tipo": "reunião",
-                    "relevancia": relevancia,
-                    "dados": reuniao,
+                    "relevancia": reuniao.get('relevance', 1),
+                    "dados": dados_adaptados,
                     "trechos_relevantes": self.extrair_trechos_relevantes(
-                        reuniao['transcricao'], 
+                        reuniao.get('transcription_full', ''), 
                         termos
                     )
                 })
-        
-        # Ordenar por relevância
-        resultados.sort(key=lambda x: x['relevancia'], reverse=True)
-        
-        return resultados[:self.max_resultados]
+            
+            # ===== ORDENAÇÃO E LIMITAÇÃO =====
+            # Ordena por relevância decrescente e limita resultados
+            resultados.sort(key=lambda x: x['relevancia'], reverse=True)
+            
+            return resultados[:self.max_resultados]
+            
+        except Exception as e:
+            raise RuntimeError(f"Erro ao buscar no Supabase: {e}")
     
     def buscar_em_documentos(self, termos: List[str]) -> List[Dict[str, Any]]:
         """
@@ -346,35 +346,60 @@ Sempre responda em português brasileiro."""
         Returns:
             List[Dict]: Documentos encontrados com relevância
         """
-        resultados = []
+        # ===== BUSCA APENAS NO BANCO REAL - SEM FALLBACKS =====
+        if not self.db:
+            raise RuntimeError("Sistema requer conexão com Supabase")
         
-        for doc in self.mock_documentos:
-            # Criar texto completo para busca
-            texto_busca = f"{doc['titulo']} {doc['autor']} {doc['conteudo']} {' '.join(doc['tags'])}"
+        try:
+            # Obtém departamento do usuário se disponível
+            department = None
+            if self.contexto_atual and 'user_data' in self.contexto_atual:
+                department = self.contexto_atual['user_data'].get('department')
             
-            # Calcular relevância
-            relevancia = self.calcular_relevancia(
-                texto_busca,
-                termos,
-                doc['titulo'],
-                doc['autor']
+            # Busca documentos no Supabase
+            documentos = self.db.buscar_documentos(
+                termos_busca=termos,
+                department=department,
+                limit=self.max_resultados
             )
             
-            if relevancia > 0:
+            # Formata resultados
+            resultados = []
+            for doc in documentos:
+                dados_adaptados = {
+                    "id": doc.get('id'),
+                    "titulo": doc.get('title', ''),
+                    "tipo": doc.get('doc_type', 'documento'),
+                    "data_criacao": doc.get('created_at', '')[:10] if doc.get('created_at') else '',
+                    "autor": "Sistema",  # TODO: Buscar nome do autor pelo ID
+                    "conteudo": doc.get('content_full', ''),
+                    "tags": doc.get('tags', [])
+                }
+                
+                # Calcula relevância
+                relevancia = self.calcular_relevancia(
+                    dados_adaptados['conteudo'],
+                    termos,
+                    dados_adaptados['titulo'],
+                    dados_adaptados['autor']
+                )
+                
                 resultados.append({
                     "tipo": "documento",
                     "relevancia": relevancia,
-                    "dados": doc,
+                    "dados": dados_adaptados,
                     "trechos_relevantes": self.extrair_trechos_relevantes(
-                        doc['conteudo'], 
+                        doc.get('content_full', ''), 
                         termos
                     )
                 })
-        
-        # Ordenar por relevância
-        resultados.sort(key=lambda x: x['relevancia'], reverse=True)
-        
-        return resultados[:self.max_resultados]
+            
+            # Ordena por relevância
+            resultados.sort(key=lambda x: x['relevancia'], reverse=True)
+            return resultados[:self.max_resultados]
+            
+        except Exception as e:
+            raise RuntimeError(f"Erro ao buscar documentos no Supabase: {e}")
     
     def extrair_trechos_relevantes(self, texto: str, termos: List[str], 
                                   contexto_chars: int = 100) -> List[str]:
@@ -402,19 +427,20 @@ Sempre responda em português brasileiro."""
                 if pos == -1:
                     break
                 
-                # Extrair trecho com contexto
+                # ===== EXTRAÇÃO DE TRECHO COM CONTEXTO =====
+                # Define limites do trecho considerando o contexto
                 inicio_trecho = max(0, pos - contexto_chars)
                 fim_trecho = min(len(texto), pos + len(termo) + contexto_chars)
                 
                 trecho = texto[inicio_trecho:fim_trecho]
                 
-                # Adicionar reticências se truncado
+                # Adiciona reticências para indicar truncamento
                 if inicio_trecho > 0:
                     trecho = "..." + trecho
                 if fim_trecho < len(texto):
                     trecho = trecho + "..."
                 
-                # Destacar termo no trecho
+                # Destaca o termo encontrado usando markdown
                 trecho_destacado = trecho.replace(
                     termo, 
                     f"**{termo}**"
@@ -425,11 +451,12 @@ Sempre responda em português brasileiro."""
                 
                 inicio = pos + 1
                 
-                # Limitar número de trechos por termo
+                # Limita a 3 trechos por termo para evitar excesso
                 if len(trechos) >= 3:
                     break
         
-        return trechos[:5]  # Máximo 5 trechos total
+        # Retorna no máximo 5 trechos no total
+        return trechos[:5]
     
     def formatar_resposta_busca(self, consulta: str, resultados_reunioes: List[Dict], 
                                resultados_documentos: List[Dict], termos: List[str]) -> str:
@@ -445,32 +472,35 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resposta formatada
         """
-        # Se não encontrou nada
+        # ===== VERIFICAÇÃO DE RESULTADOS VAZIOS =====
         if not resultados_reunioes and not resultados_documentos:
             return self._formatar_resposta_vazia(consulta, termos)
         
-        # Construir resposta
+        # ===== CONSTRUÇÃO DA RESPOSTA FORMATADA =====
         partes = []
         
-        # Resumo executivo
+        # Cabeçalho com resumo dos resultados
         total_resultados = len(resultados_reunioes) + len(resultados_documentos)
         partes.append(f"🔍 **Encontrei {total_resultados} resultado(s) relevante(s) para sua busca.**\n")
         
-        # Resultados de reuniões
+        # ===== SEÇÃO DE REUNIÕES =====
         if resultados_reunioes:
             partes.append("### 📅 Reuniões Encontradas:\n")
             
-            for i, resultado in enumerate(resultados_reunioes[:3], 1):  # Top 3
+            # Mostra apenas as 3 reuniões mais relevantes
+            for i, resultado in enumerate(resultados_reunioes[:3], 1):
                 reuniao = resultado['dados']
                 partes.append(f"**{i}. {reuniao['titulo']}**")
                 partes.append(f"   - Data: {reuniao['data']} às {reuniao['hora']}")
                 partes.append(f"   - Participantes: {', '.join(reuniao['participantes'][:3])}")
                 
-                # Decisões relevantes
+                # ===== FILTRA DECISÕES RELEVANTES =====
+                # Mostra apenas decisões que contêm os termos buscados
                 decisoes_relevantes = [d for d in reuniao['decisoes'] 
                                      if any(t.lower() in d.lower() for t in termos)]
                 if decisoes_relevantes:
                     partes.append(f"   - Decisões relacionadas:")
+                    # Limita a 2 decisões por reunião
                     for decisao in decisoes_relevantes[:2]:
                         partes.append(f"     • {decisao}")
                 
@@ -480,11 +510,12 @@ Sempre responda em português brasileiro."""
                 
                 partes.append("")  # Linha em branco
         
-        # Resultados de documentos
+        # ===== SEÇÃO DE DOCUMENTOS =====
         if resultados_documentos:
             partes.append("### 📄 Documentos Encontrados:\n")
             
-            for i, resultado in enumerate(resultados_documentos[:2], 1):  # Top 2
+            # Mostra apenas os 2 documentos mais relevantes
+            for i, resultado in enumerate(resultados_documentos[:2], 1):
                 doc = resultado['dados']
                 partes.append(f"**{i}. {doc['titulo']}**")
                 partes.append(f"   - Tipo: {doc['tipo']}")
@@ -497,7 +528,8 @@ Sempre responda em português brasileiro."""
                 
                 partes.append("")
         
-        # Sugestões adicionais
+        # ===== SUGESTÕES PARA POUCOS RESULTADOS =====
+        # Se encontrou poucos resultados, oferece dicas de busca
         if total_resultados < 3:
             partes.append("\n💡 **Sugestões para refinar sua busca:**")
             partes.append("- Tente usar termos mais específicos")
@@ -517,6 +549,7 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resposta formatada
         """
+        # ===== MENSAGEM PARA BUSCA SEM RESULTADOS =====
         resposta = [
             "🔍 **Não encontrei resultados para sua busca.**\n",
             f"Termos pesquisados: {', '.join(termos)}\n",
@@ -541,9 +574,48 @@ Sempre responda em português brasileiro."""
         Returns:
             List[Dict]: Reuniões no período
         """
+        # ===== BUSCA NO BANCO REAL SE DISPONÍVEL =====
+        if self.usar_banco_real:
+            try:
+                user_id = self.contexto_atual.get('user_id') if self.contexto_atual else None
+                
+                # Busca todas as reuniões do usuário
+                reunioes = self.db.buscar_reunioes_usuario(user_id, limit=100)
+                
+                # Filtra por período
+                resultados = []
+                for reuniao in reunioes:
+                    data_reuniao = reuniao.get('start_time', '')[:10]
+                    if data_inicio <= data_reuniao <= data_fim:
+                        dados_adaptados = {
+                            "id": reuniao.get('id'),
+                            "titulo": reuniao.get('title', ''),
+                            "data": data_reuniao,
+                            "hora": reuniao.get('start_time', '')[11:16] if reuniao.get('start_time') else '',
+                            "duracao": f"{reuniao.get('duration_seconds', 0) // 60} min",
+                            "participantes": reuniao.get('participants', []),
+                            "pauta": reuniao.get('key_points', []),
+                            "decisoes": reuniao.get('decisions', []),
+                            "transcricao": reuniao.get('transcription_full', ''),
+                            "tags": []
+                        }
+                        
+                        resultados.append({
+                            "tipo": "reunião",
+                            "dados": dados_adaptados
+                        })
+                
+                return resultados
+                
+            except Exception as e:
+                print(f"[ERRO] Falha ao buscar por período: {e}")
+        
+        # ===== FALLBACK PARA MOCK =====
         resultados = []
         
+        # ===== FILTRA REUNIÕES POR PERÍODO =====
         for reuniao in self.mock_reunioes:
+            # Verifica se a data da reunião está dentro do intervalo
             if data_inicio <= reuniao['data'] <= data_fim:
                 resultados.append({
                     "tipo": "reunião",
@@ -565,8 +637,11 @@ Sempre responda em português brasileiro."""
         resultados = []
         nome_lower = nome_participante.lower()
         
+        # ===== BUSCA POR NOME DE PARTICIPANTE =====
         for reuniao in self.mock_reunioes:
+            # Converte nomes para minúsculas para busca case-insensitive
             participantes_lower = [p.lower() for p in reuniao['participantes']]
+            # Verifica se o nome buscado está contido em algum participante
             if any(nome_lower in p for p in participantes_lower):
                 resultados.append({
                     "tipo": "reunião",
@@ -586,14 +661,16 @@ Sempre responda em português brasileiro."""
         Returns:
             str: Resumo formatado
         """
-        # Buscar informações sobre o tópico
+        # ===== BUSCA INICIAL SOBRE O TÓPICO =====
         termos = self.extrair_termos_busca(topico)
         resultados_reunioes = self.buscar_em_reunioes(termos)
         
+        # Retorna mensagem se não há dados suficientes
         if not resultados_reunioes:
             return f"Não encontrei informações suficientes sobre '{topico}' para gerar um resumo."
         
-        # Extrair informações relevantes
+        # ===== EXTRAÇÃO E AGREGAÇÃO DE DADOS =====
+        # Coleta todas as informações relevantes das reuniões encontradas
         todas_decisoes = []
         todos_participantes = []
         todas_datas = []
@@ -604,10 +681,11 @@ Sempre responda em português brasileiro."""
             todos_participantes.extend(reuniao['participantes'])
             todas_datas.append(reuniao['data'])
         
-        # Contar participantes mais frequentes
+        # ===== ANÁLISE DE FREQUÊNCIA =====
+        # Identifica os 3 participantes mais ativos no tópico
         participantes_freq = Counter(todos_participantes).most_common(3)
         
-        # Formatar resumo
+        # ===== FORMATAÇÃO DO RESUMO =====
         resumo = [
             f"📊 **Resumo sobre: {topico}**\n",
             f"**Período analisado:** {min(todas_datas)} a {max(todas_datas)}",
@@ -618,12 +696,53 @@ Sempre responda em português brasileiro."""
         for participante, freq in participantes_freq:
             resumo.append(f"• {participante} ({freq} reuniões)")
         
+        # ===== LISTA DE DECISÕES RELEVANTES =====
         resumo.append("\n**Principais decisões/pontos:**")
+        # Mostra até 5 decisões que contêm os termos do tópico
         for decisao in todas_decisoes[:5]:
             if any(t.lower() in decisao.lower() for t in termos):
                 resumo.append(f"• {decisao}")
         
         return "\n".join(resumo)
+    
+    def _converter_resultados_semanticos(self, resultados_semanticos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Converte resultados da busca semântica para o formato esperado.
+        
+        Args:
+            resultados_semanticos: Resultados da busca por embeddings
+            
+        Returns:
+            Lista no formato padrão do agente
+        """
+        resultados_convertidos = []
+        
+        for resultado in resultados_semanticos:
+            meeting_data = resultado.get('meeting_data', {})
+            
+            if meeting_data:
+                # Adaptar formato para o esperado pelo agente
+                dados_adaptados = {
+                    "id": meeting_data.get('id'),
+                    "titulo": meeting_data.get('title', ''),
+                    "data": meeting_data.get('start_time', '')[:10] if meeting_data.get('start_time') else '',
+                    "hora": meeting_data.get('start_time', '')[11:16] if meeting_data.get('start_time') else '',
+                    "duracao": f"{meeting_data.get('duration_seconds', 0) // 60} min",
+                    "participantes": meeting_data.get('participants', []),
+                    "pauta": meeting_data.get('key_points', []),
+                    "decisoes": meeting_data.get('decisions', []),
+                    "transcricao": meeting_data.get('transcription_full', ''),
+                    "tags": []
+                }
+                
+                resultados_convertidos.append({
+                    "tipo": "reunião",
+                    "relevancia": resultado.get('similarity', 0) * 100,  # Converter para escala 0-100
+                    "dados": dados_adaptados,
+                    "trechos_relevantes": [resultado.get('chunk_text', '')[:200] + "..."] if resultado.get('chunk_text') else []
+                })
+        
+        return resultados_convertidos
     
     def __repr__(self):
         return f"AgenteConsultaInteligente(max_resultados={self.max_resultados})"

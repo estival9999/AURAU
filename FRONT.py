@@ -1,25 +1,77 @@
 """
-Sistema de Reuniões - Versão Linux Corrigida
+Sistema de Reuniões AURALIS - Versão Linux Corrigida
 Resolução fixa: 320x240 pixels
 Interface otimizada para Linux com entrada de texto funcionando
+Interface gráfica principal do sistema com integração completa ao backend de IA
 """
 
+import sys
+import os
+from pathlib import Path
+
+# IMPORTANTE: Carregar .env ANTES de importar outros módulos
+def load_env():
+    """
+    Carrega variáveis de ambiente do arquivo .env
+    
+    Esta função é essencial para configurar as credenciais da API OpenAI
+    e outras configurações do sistema antes da inicialização
+    """
+    env_file = Path(__file__).parent / '.env'
+    
+    if env_file.exists():
+        print("📋 Carregando configurações de .env...")
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key] = value.strip()
+                        # Mostrar apenas parte da chave por segurança
+                        if key == 'OPENAI_API_KEY':
+                            print(f"   ✅ {key} configurada ({value[:20]}...)")
+                        elif key in ['SUPABASE_URL', 'DEBUG_MODE']:
+                            print(f"   ✅ {key} configurada")
+    else:
+        print("⚠️  Arquivo .env não encontrado")
+
+# Carregar variáveis de ambiente antes de qualquer outra importação
+load_env()
+
+# Agora importar as outras bibliotecas com ambiente configurado
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
 from datetime import datetime, timedelta
 import threading
 import time
-import os
 import math
 import random
 import numpy as np
 
+# Importar o backend integrado (agora com as variáveis de ambiente carregadas)
+# Este import deve acontecer após load_env() para garantir configuração correta
+from main import AURALISBackend, process_message_async
+
 class SistemaTFT:
+    """
+    Classe principal da interface gráfica do sistema AURALIS.
+    
+    Gerencia todas as telas, navegação, animações e integração com o backend.
+    Otimizada para display de 320x240 pixels com tema escuro.
+    """
+    
     def __init__(self):
-        # Configurar tema escuro
+        # Configurar tema escuro para toda a aplicação
         ctk.set_appearance_mode("dark")
         
-        # Paleta de cores personalizada
+        # Inicializar backend AURALIS com sistema de agentes IA
+        print("🚀 Inicializando backend AURALIS...")
+        # Backend conectado APENAS ao Supabase
+        self.backend = AURALISBackend()  # Sem mocks - apenas Supabase
+        
+        # Paleta de cores personalizada otimizada para tema escuro
+        # Cores cuidadosamente selecionadas para boa visibilidade e acessibilidade
         self.cores = {
             "primaria": "#1E88E5",
             "secundaria": "#424242",
@@ -39,35 +91,40 @@ class SistemaTFT:
         }
         
         # Janela principal - COM decorações no Linux para funcionar corretamente
+        # Importante: manter decorações para garantir funcionalidade de entrada de texto
         self.janela = ctk.CTk()
         self.janela.title("AURALIS - Sistema de Reuniões")
         self.janela.geometry("320x240")
-        self.janela.resizable(False, False)
+        self.janela.resizable(False, False)  # Tamanho fixo para consistência
         self.janela.configure(fg_color=self.cores["fundo"])
         
-        # Estado do sistema
-        self.usuario_logado = None
-        self.frame_atual = None
-        self.gravando = False
-        self.timer_ativo = False
-        self.contexto_reuniao = None
+        # Estado do sistema - variáveis de controle principais
+        self.usuario_logado = None      # Dados do usuário autenticado
+        self.frame_atual = None         # Frame/tela atualmente visível
+        self.gravando = False           # Status de gravação em andamento
+        self.timer_ativo = False        # Controle do timer de gravação
+        self.contexto_reuniao = None    # Contexto da reunião para a IA
         
-        # Estado da interface de áudio
-        self.audio_ativo = False
-        self.audio_estado = "idle"
-        self.animacao_ativa = False
+        # Estado da interface de áudio - controla animações e interações
+        self.audio_ativo = False        # Interface de áudio está ativa
+        self.audio_estado = "idle"      # Estado: idle, recording, processing
+        self.animacao_ativa = False     # Controle de animações de partículas
         
-        # Centralizar janela
+        # Centralizar janela na tela do usuário
         self.centralizar_janela()
         
-        # Container principal
+        # Container principal - todas as telas são filhas deste container
         self.container_principal = ctk.CTkFrame(self.janela, fg_color=self.cores["fundo"])
         self.container_principal.pack(fill="both", expand=True)
         
-        # Iniciar com tela de login
+        # Iniciar com tela de login - ponto de entrada do sistema
         self.mostrar_login()
     
     def centralizar_janela(self):
+        """
+        Centraliza a janela na tela do usuário.
+        Calcula a posição baseada nas dimensões da tela.
+        """
         self.janela.update_idletasks()
         largura = 320
         altura = 240
@@ -76,29 +133,36 @@ class SistemaTFT:
         self.janela.geometry(f"{largura}x{altura}+{x}+{y}")
     
     def executar(self):
+        """Inicia o loop principal da interface gráfica"""
         self.janela.mainloop()
     
     def transicao_rapida(self, novo_frame_func):
-        """Transição rápida entre frames"""
+        """
+        Realiza transição rápida entre telas.
+        
+        Args:
+            novo_frame_func: Função que cria a nova tela
+        """
         if self.frame_atual:
             self.frame_atual.destroy()
         novo_frame_func()
     
     # ==================== TELA DE LOGIN ====================
     def mostrar_login(self):
+        """Cria e exibe a tela de login do sistema"""
         self.frame_atual = ctk.CTkFrame(self.container_principal, fg_color=self.cores["fundo"])
         self.frame_atual.pack(fill="both", expand=True)
         
-        # Container central
+        # Container central para o formulário de login
         frame_central = ctk.CTkFrame(self.frame_atual, width=280, height=170, fg_color=self.cores["superficie"])
         frame_central.place(relx=0.5, rely=0.5, anchor="center")
-        frame_central.pack_propagate(False)
+        frame_central.pack_propagate(False)  # Manter tamanho fixo
         
-        # Espaçamento superior
+        # Espaçamento superior para melhor alinhamento visual
         ctk.CTkFrame(frame_central, height=10, fg_color=self.cores["superficie"]).pack()
         
         # Campos de login
-        # Usuário
+        # Campo de usuário
         ctk.CTkLabel(
             frame_central, 
             text="Usuário", 
@@ -116,7 +180,7 @@ class SistemaTFT:
         )
         self.entry_usuario.pack(pady=(0, 8))
         
-        # Senha
+        # Campo de senha
         ctk.CTkLabel(
             frame_central, 
             text="Senha", 
@@ -148,6 +212,7 @@ class SistemaTFT:
         )
         self.btn_login.pack()
         
+        # Permitir login com Enter na senha
         self.entry_senha.bind("<Return>", lambda e: self.fazer_login())
         
         # Focar no campo usuário após a janela estar completamente carregada
@@ -160,8 +225,14 @@ class SistemaTFT:
         if not usuario:
             return
         
-        self.usuario_logado = {"usuario": usuario, "area": "geral"}
-        self.transicao_rapida(self.mostrar_menu_principal)
+        # Autenticar via backend
+        user = self.backend.authenticate(usuario, senha)
+        if user:
+            self.usuario_logado = user
+            self.transicao_rapida(self.mostrar_menu_principal)
+        else:
+            messagebox.showerror("Erro", "Usuário ou senha inválidos", parent=self.janela)
+            self.entry_senha.delete(0, "end")
     
     # ==================== MENU PRINCIPAL ====================
     def mostrar_menu_principal(self):
@@ -196,7 +267,7 @@ class SistemaTFT:
         # Usuário
         ctk.CTkLabel(
             frame_header,
-            text=self.usuario_logado['usuario'],
+            text=self.usuario_logado.get('username', self.usuario_logado.get('usuario', 'Usuário')),
             font=ctk.CTkFont(size=10),
             text_color=self.cores["texto_secundario"]
         ).pack(side="right", padx=5)
@@ -381,7 +452,7 @@ class SistemaTFT:
 Data: {data} - Duração: {duracao}
 
 PARTICIPANTES:
-• {self.usuario_logado['usuario']} (Organizador)
+• {self.usuario_logado.get('username', self.usuario_logado.get('usuario', 'Usuário'))} (Organizador)
 • João Silva (Desenvolvimento)
 • Maria Santos (Design)
 • Pedro Costa (Gestão)
@@ -713,6 +784,61 @@ PRÓXIMOS PASSOS:
         self.entry_chat.bind("<Return>", lambda e: self.enviar_mensagem())
         self.entry_chat.focus_set()
     
+    def _mostrar_processando(self):
+        """Mostra indicador de processamento no chat"""
+        self.text_chat.configure(state="normal")
+        self.text_chat.insert("end", "🤖 Processando...\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+    
+    def _resposta_ia_callback(self, resposta: str):
+        """Callback para resposta da IA"""
+        # Executar na thread principal da GUI
+        self.janela.after(0, lambda: self._atualizar_chat_com_resposta(resposta))
+    
+    def _erro_ia_callback(self, erro: str):
+        """Callback para erro no processamento"""
+        self.janela.after(0, lambda: self._atualizar_chat_com_erro(erro))
+    
+    def _atualizar_chat_com_resposta(self, resposta: str):
+        """Atualiza o chat com a resposta da IA"""
+        self.text_chat.configure(state="normal")
+        
+        # Remover "Processando..."
+        content = self.text_chat.get("1.0", "end-1c")
+        lines = content.split('\n')
+        if lines and "Processando..." in lines[-1]:
+            # Remover última linha
+            self.text_chat.delete("end-2l", "end")
+        
+        # Adicionar resposta
+        self.text_chat.insert("end", f"🤖 {resposta}\n\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+        
+        # Reabilitar entrada
+        self.entry_chat.configure(state="normal")
+        self.entry_chat.focus_set()
+    
+    def _atualizar_chat_com_erro(self, erro: str):
+        """Atualiza o chat com mensagem de erro"""
+        self.text_chat.configure(state="normal")
+        
+        # Remover "Processando..."
+        content = self.text_chat.get("1.0", "end-1c")
+        lines = content.split('\n')
+        if lines and "Processando..." in lines[-1]:
+            self.text_chat.delete("end-2l", "end")
+        
+        # Adicionar erro
+        self.text_chat.insert("end", f"❌ Erro: {erro}\n\n")
+        self.text_chat.configure(state="disabled")
+        self.text_chat.see("end")
+        
+        # Reabilitar entrada
+        self.entry_chat.configure(state="normal")
+        self.entry_chat.focus_set()
+    
     def enviar_mensagem(self):
         msg = self.entry_chat.get().strip()
         if not msg:
@@ -720,11 +846,24 @@ PRÓXIMOS PASSOS:
         
         self.text_chat.configure(state="normal")
         self.text_chat.insert("end", f"👤 {msg}\n")
-        self.text_chat.insert("end", "🤖 Processando...\n\n")
         self.text_chat.configure(state="disabled")
         self.text_chat.see("end")
         
         self.entry_chat.delete(0, "end")
+        
+        # Desabilitar entrada durante processamento
+        self.entry_chat.configure(state="disabled")
+        
+        # Mostrar indicador de processamento
+        self._mostrar_processando()
+        
+        # Processar mensagem via backend de forma assíncrona
+        process_message_async(
+            self.backend,
+            msg,
+            self._resposta_ia_callback,
+            self._erro_ia_callback
+        )
     
     # ==================== INTERFACE DE ÁUDIO COM CLIQUE ====================
     def abrir_interface_audio(self):
@@ -968,6 +1107,8 @@ PRÓXIMOS PASSOS:
         ).pack(side="left", padx=10, pady=8)
     
     def fazer_logout(self):
+        if self.backend and self.usuario_logado:
+            self.backend.logout()
         self.usuario_logado = None
         self.transicao_rapida(self.mostrar_login)
 
