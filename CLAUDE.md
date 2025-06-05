@@ -203,13 +203,15 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
 ### REGRA ABSOLUTA: Ao final de CADA resposta/interação, você DEVE:
 
 1. **Criar obrigatoriamente** um arquivo README seguindo o padrão:
-   - Nome: `README_DD_MM_HHMM.md` (exemplo: `README_04_01_1630.md`)
+   - Nome: `README_DD_MM_HHMM_XXX.md` onde XXX é um ID único crescente de 3 dígitos
+   - Exemplo: `README_04_01_1630_001.md`, `README_04_01_1635_002.md`
    - Localização: `/home/mateus/Área de trabalho/X_AURA/READMES_COMP/`
    - Criar pasta READMES_COMP se não existir
+   - O ID deve ser sequencial baseado no último README criado
 
 2. **Estrutura ULTRA-DETALHADA obrigatória do README**:
    ```markdown
-   # README_DD_MM_HHMM
+   # README_DD_MM_HHMM_XXX
    
    ## 📋 Solicitação do Usuário
    ### Descrição Original
@@ -468,7 +470,7 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
 ```mermaid
 A8_3 --> A9[📝 Nova funcionalidade X]
 A9 --> A9_1[Detalhes da implementação]
-A9 --> README9[README_04_01_1800.md]
+A9 --> README9[README_04_01_1800_017.md]
 ```
 
 ### ⚠️ IMPORTANTE:
