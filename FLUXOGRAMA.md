@@ -102,7 +102,37 @@ flowchart TD
     A16_2 --> A16_3[Documentação confirma decisão]
     A16 --> README16[README_04_01_1659_014.md]
     
-    A16_3 --> Current[Estado Atual: Sistema validado e compreendido]
+    A16_3 --> A17[🔧 Git Commit Checkpoint]
+    A17 --> A17_1[22 arquivos commitados]
+    A17_1 --> A17_2[Mensagem: bases supabase ok]
+    A17_2 --> A17_3[Próxima fase: embeddings chunk]
+    A17 --> README17[README_04_01_1725_020.md]
+    
+    A17_3 --> A18[🔍 Análise Credenciais Login]
+    A18 --> A18_1[8 usuários identificados]
+    A18_1 --> A18_2[Senha padrão: senha123]
+    A18_2 --> A18_3[Mock mode ativo confirmado]
+    A18 --> README18[README_06_01_1830_021.md]
+    
+    A18_3 --> A19[🔧 Correção IDs Duplicados]
+    A19 --> A19_1[ID 014 duplicado identificado]
+    A19_1 --> A19_2[Arquivo 16:59 renomeado para 022]
+    A19_2 --> A19_3[Integridade sequencial restaurada]
+    A19 --> README19[README_06_01_2130_023.md]
+    
+    A19_3 --> A20[🔄 Reversão de Alterações]
+    A20 --> A20_1[__init__.py restaurado]
+    A20_1 --> A20_2[main.py restaurado]
+    A20_2 --> A20_3[Mocks removidos]
+    A20 --> README20[README_06_01_2135_024.md]
+    
+    A20_3 --> A21[📝 Correção FLUXOGRAMA IDs]
+    A21 --> A21_1[Gap 014-020 identificado]
+    A21_1 --> A21_2[Referências corrigidas]
+    A21_2 --> A21_3[Estratégia prevenção implementada]
+    A21 --> README21[README_06_01_2132_025.md]
+    
+    A21_3 --> Current[Estado Atual: Sistema documentação íntegro]
 
     style Start fill:#90EE90
     style Current fill:#FFD700
@@ -122,6 +152,17 @@ flowchart TD
     style README14 fill:#E6E6FA
     style README15 fill:#E6E6FA
     style README16 fill:#E6E6FA
+    style README17 fill:#E6E6FA
+    style README18 fill:#E6E6FA
+    style README19 fill:#E6E6FA
+    style README20 fill:#E6E6FA
+    style README21 fill:#E6E6FA
+    style README14 fill:#E6E6FA
+    style README15 fill:#E6E6FA
+    style README16 fill:#E6E6FA
+    style README17 fill:#E6E6FA
+    style README18 fill:#E6E6FA
+    style README19 fill:#E6E6FA
 ```
 
 ## 📁 Estrutura de Arquivos Afetados
@@ -165,29 +206,50 @@ Para análise completa de cada alteração, consulte:
 | Git Push Final | [README_04_01_1655_012.md](READMES_COMP/README_04_01_1655_012.md) | Sincronização final com GitHub |
 | Refatoração Nomenclatura | [README_04_01_1745_013.md](READMES_COMP/README_04_01_1745_013.md) | Adição de IDs únicos aos READMEs |
 | Correção Ordem | [README_04_01_1750_019.md](READMES_COMP/README_04_01_1750_019.md) | Correção para ordem cronológica real |
-| Análise Knowledge Base | [README_04_01_1659_014.md](READMES_COMP/README_04_01_1659_014.md) | Validação de tabela vazia como design intencional |
+| Análise Knowledge Base | [README_04_01_1659_022.md](READMES_COMP/README_04_01_1659_022.md) | Validação de tabela vazia como design intencional |
+| Git Commit Checkpoint | [README_04_01_1725_020.md](READMES_COMP/README_04_01_1725_020.md) | Commit antes de fase embeddings chunk |
+| Análise Credenciais | [README_06_01_1830_021.md](READMES_COMP/README_06_01_1830_021.md) | Identificação de 8 usuários teste com senha123 |
+| Correção IDs Duplicados | [README_06_01_2130_023.md](READMES_COMP/README_06_01_2130_023.md) | Renomeação de arquivo duplicado 014 para 022 |
+| Reversão de Alterações | [README_06_01_2135_024.md](READMES_COMP/README_06_01_2135_024.md) | Reversão de mocks em __init__.py e main.py |
+| Correção FLUXOGRAMA IDs | [README_06_01_2132_025.md](READMES_COMP/README_06_01_2132_025.md) | Correção gap 014-020 e estratégia prevenção |
 
 ## 📈 Estatísticas do Projeto
 
-- **Total de alterações**: 16 principais  
+- **Total de alterações**: 21 principais  
 - **Arquivos criados**: 11 (incluindo FLUXOGRAMA.md)
 - **Arquivos excluídos**: 3
-- **Arquivos modificados**: 5 (CLAUDE.md modificado 4x)
-- **Arquivos renomeados**: 27 (16 inicial + 11 correção)
+- **Arquivos modificados**: 6 (CLAUDE.md modificado 4x, FLUXOGRAMA.md 2x)
+- **Arquivos renomeados**: 28 (16 inicial + 11 correção + 1 ID duplicado)
 - **Linhas de código SQL**: 335 (versão final)
 - **Scripts Python criados**: 6
-- **READMEs documentados**: 20 (16 no fluxo + 4 extras)
+- **READMEs documentados**: 25 (21 no fluxo + 4 extras)
 - **Sistema de documentação**: 2 camadas + contexto obrigatório + IDs cronológicos
 - **Qualidade documentação**: Ultra-detalhada implementada
 - **Dados inseridos no banco**: 21 registros (9 usuários, 4 reuniões, 8 interações IA)
 - **Validação banco**: ✅ Completa e funcional
-- **Commits GitHub**: 3 (incluindo sincronização final)
-- **Correções aplicadas**: Ordem cronológica restaurada
-- **Análises realizadas**: Knowledge base validada como intencionalmente vazia
+- **Commits GitHub**: 4 (incluindo checkpoint embeddings)
+- **Correções aplicadas**: Ordem cronológica restaurada + IDs duplicados corrigidos
+- **Análises realizadas**: Knowledge base validada + credenciais identificadas + integridade IDs
 
 ## 🎯 Próxima Atualização
 
 Este fluxograma será atualizado automaticamente após cada interação, adicionando novos nós ao fluxo e referências aos READMEs correspondentes.
+
+## ⚙️ Estratégia de Prevenção de IDs Duplicados
+
+### Processo Implementado:
+1. **Verificação Automática**: Antes de criar novo README, sempre verificar último ID usado
+2. **Comando de Verificação**: `ls READMES_COMP/ | grep -E "_[0-9]{3}\.md" | sed 's/.*_\([0-9][0-9][0-9]\)\.md/\1/' | sort -n | tail -1`
+3. **Incremento Sequencial**: Novo ID = Último ID + 1
+4. **Validação**: Confirmar que o novo ID não existe antes de criar arquivo
+
+### Exemplo de Uso:
+```bash
+# Verificar último ID
+last_id=$(ls READMES_COMP/ | grep -E "_[0-9]{3}\.md" | sed 's/.*_\([0-9][0-9][0-9]\)\.md/\1/' | sort -n | tail -1)
+next_id=$(printf "%03d" $((10#$last_id + 1)))
+echo "Próximo ID disponível: $next_id"
+```
 
 ### Modificados
 - 📝 `/CLAUDE.md` - Instruções de documentação + contexto obrigatório + templates detalhados
@@ -195,4 +257,4 @@ Este fluxograma será atualizado automaticamente após cada interação, adicion
 - 📝 `/FLUXOGRAMA.md` - Este arquivo (auto-referência)
 
 ---
-*Última atualização: 04/01/2025 16:59*
+*Última atualização: 06/01/2025 21:32*
