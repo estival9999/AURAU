@@ -170,28 +170,135 @@ Você é um assistente de desenvolvimento de software especializado e altamente 
    - Localização: `/home/mateus/Área de trabalho/X_AURA/READMES_COMP/`
    - Criar pasta READMES_COMP se não existir
 
-2. **Estrutura obrigatória do README**:
+2. **Estrutura ULTRA-DETALHADA obrigatória do README**:
    ```markdown
    # README_DD_MM_HHMM
    
-   ## Solicitação do Usuário
-   [Resumo claro do que foi solicitado]
+   ## 📋 Solicitação do Usuário
+   ### Descrição Original
+   [Transcrição exata da solicitação]
    
-   ## Ações Executadas
-   - [Lista detalhada de todas as ações realizadas]
-   - [Incluir ferramentas utilizadas]
+   ### Interpretação e Análise
+   [Análise detalhada do que foi solicitado, contexto e objetivos]
    
-   ## Código/Alterações
-   [Código implementado ou modificações realizadas]
+   ## 🧠 Análise ULTRATHINKS
+   ### Decomposição do Problema
+   [Breakdown completo do problema em componentes menores]
    
-   ## Decisões e Justificativas
-   [Explicar escolhas técnicas e decisões tomadas]
+   ### Contexto do Sistema
+   - Estado atual: [Descrição do estado antes das mudanças]
+   - Arquivos envolvidos: [Lista com paths completos]
+   - Dependências identificadas: [Componentes que podem ser afetados]
    
-   ## Próximos Passos
-   [Sugestões ou tarefas pendentes]
+   ## 🔧 Ações Executadas Detalhadamente
+   ### Sequência de Operações
+   1. **[Ação 1]**
+      - Ferramenta: [Nome da ferramenta utilizada]
+      - Parâmetros: [Parâmetros específicos]
+      - Resultado: [O que foi obtido/modificado]
+      - Tempo de execução: [Se aplicável]
    
-   ## Timestamp
-   Criado em: DD/MM/AAAA HH:MM
+   2. **[Ação 2]**
+      - [Repetir estrutura para cada ação]
+   
+   ### Comandos Executados
+   ```bash
+   # Comandos exatos executados
+   ```
+   
+   ## 💻 Código/Alterações Implementadas
+   ### Arquivo: [nome_do_arquivo.ext]
+   #### Mudanças Realizadas
+   ```[linguagem]
+   # Código anterior (se alteração)
+   [código antigo]
+   
+   # Código novo
+   [código novo]
+   ```
+   
+   #### Justificativa Técnica
+   [Explicação detalhada de por que essa abordagem foi escolhida]
+   
+   ## 🎯 Decisões Técnicas e Arquiteturais
+   ### Decisões Tomadas
+   1. **[Decisão 1]**
+      - Alternativas consideradas: [Lista de opções]
+      - Prós e contras: [Análise comparativa]
+      - Justificativa final: [Por que essa escolha]
+   
+   ### Padrões e Convenções Aplicados
+   - [Padrões de código seguidos]
+   - [Convenções do projeto respeitadas]
+   
+   ## 📊 Impactos e Resultados
+   ### Mudanças no Sistema
+   - Funcionalidades afetadas: [Lista detalhada]
+   - Performance esperada: [Métricas se aplicável]
+   - Melhorias implementadas: [O que melhorou]
+   
+   ### Testes e Validações
+   - Testes realizados: [Descrição dos testes]
+   - Resultados obtidos: [Sucesso/falhas]
+   - Evidências: [Logs, screenshots se aplicável]
+   
+   ## ⚠️ Riscos e Considerações
+   ### Possíveis Problemas
+   - [Problema potencial 1]: [Descrição e mitigação]
+   - [Problema potencial 2]: [Descrição e mitigação]
+   
+   ### Limitações Conhecidas
+   - [Limitação 1]: [Descrição e workaround]
+   
+   ## 🔄 Estado do Sistema
+   ### Antes
+   - [Descrição completa do estado anterior]
+   - Versões: [Versões de componentes se aplicável]
+   
+   ### Depois
+   - [Descrição completa do novo estado]
+   - Versões atualizadas: [Novas versões]
+   
+   ## 📚 Referências e Documentação
+   ### Arquivos Relacionados
+   - `[arquivo1.py]`: [Descrição da relação]
+   - `[arquivo2.md]`: [Descrição da relação]
+   
+   ### Documentação Externa
+   - [Links para docs relevantes]
+   - [APIs ou bibliotecas referenciadas]
+   
+   ## 🚀 Próximos Passos Recomendados
+   ### Imediatos
+   1. [Ação prioritária 1]
+   2. [Ação prioritária 2]
+   
+   ### Futuras Melhorias
+   - [Melhoria sugerida 1]: [Descrição e benefícios]
+   - [Melhoria sugerida 2]: [Descrição e benefícios]
+   
+   ## 📈 Métricas e KPIs
+   - Complexidade da mudança: [Baixa/Média/Alta]
+   - Linhas de código: [Adicionadas/Removidas/Modificadas]
+   - Arquivos afetados: [Quantidade]
+   - Tempo total de implementação: [Duração]
+   
+   ## 🏷️ Tags e Categorização
+   - Categoria: [Ex: Feature/Bug/Refactoring/Config]
+   - Componentes: [Ex: Backend/Frontend/Database]
+   - Prioridade: [Ex: Alta/Média/Baixa]
+   - Sprint/Fase: [Se aplicável]
+   
+   ## 📝 Notas Adicionais e Contexto
+   [Qualquer informação adicional relevante para entender completamente 
+   esta interação, incluindo conversas anteriores relevantes, decisões 
+   de design, ou contexto do negócio]
+   
+   ## ⏰ Timestamp e Versionamento
+   - Criado em: DD/MM/AAAA HH:MM
+   - Duração da tarefa: [Tempo decorrido]
+   - Versão do sistema: [Se aplicável]
+   - Hash do commit: [Se aplicável]
    ```
 
 3. **Aplicação universal** - Criar README para:
