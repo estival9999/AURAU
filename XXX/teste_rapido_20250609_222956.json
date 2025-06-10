@@ -1,0 +1,65 @@
+[
+  {
+    "query": "Como funciona o sistema AURALIS?",
+    "config": "Full-Text",
+    "num_resultados": 3,
+    "score_medio": 0.016918997884591655,
+    "tempo": 0.8587908744812012
+  },
+  {
+    "query": "Como funciona o sistema AURALIS?",
+    "config": "Sem\u00e2ntico",
+    "num_resultados": 3,
+    "score_medio": 0.03977821414003433,
+    "tempo": 0.3045635223388672
+  },
+  {
+    "query": "Como funciona o sistema AURALIS?",
+    "config": "H\u00edbrido",
+    "num_resultados": 3,
+    "score_medio": 0.034082026618097665,
+    "tempo": 0.44648289680480957
+  },
+  {
+    "query": "valida\u00e7\u00e3o CPF documentos",
+    "config": "Full-Text",
+    "num_resultados": 3,
+    "score_medio": 0.029739510705104496,
+    "tempo": 0.34246277809143066
+  },
+  {
+    "query": "valida\u00e7\u00e3o CPF documentos",
+    "config": "Sem\u00e2ntico",
+    "num_resultados": 3,
+    "score_medio": 0.041060265422085636,
+    "tempo": 0.3268468379974365
+  },
+  {
+    "query": "valida\u00e7\u00e3o CPF documentos",
+    "config": "H\u00edbrido",
+    "num_resultados": 3,
+    "score_medio": 0.03921023174630277,
+    "tempo": 0.4803738594055176
+  },
+  {
+    "query": "cooperativa Pantaneta cr\u00e9dito",
+    "config": "Full-Text",
+    "num_resultados": 3,
+    "score_medio": 0.04151928900356574,
+    "tempo": 0.47380900382995605
+  },
+  {
+    "query": "cooperativa Pantaneta cr\u00e9dito",
+    "config": "Sem\u00e2ntico",
+    "num_resultados": 3,
+    "score_medio": 0.042175575346126565,
+    "tempo": 0.7050740718841553
+  },
+  {
+    "query": "cooperativa Pantaneta cr\u00e9dito",
+    "config": "H\u00edbrido",
+    "num_resultados": 3,
+    "score_medio": 0.043671471442466636,
+    "tempo": 0.36356568336486816
+  }
+]

@@ -1,0 +1,8 @@
+lightrag
+openai
+python-dotenv
+networkx
+pyvis
+supabase
+numpy
+asyncio
